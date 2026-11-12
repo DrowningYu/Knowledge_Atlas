@@ -59,8 +59,10 @@ try:
       set b to position of item "Applications" of diskFolder
       if item 1 of a is not 180 or item 2 of a is not 170 then error "App icon misplaced"
       if item 1 of b is not 480 or item 2 of b is not 170 then error "Applications icon misplaced"
-      return {a, b, background picture of icon view options of installWindow}
+      return {a, b}
     end tell''' % (volume, volume)
+    # Finder may reject its background-picture getter for read-only disks (-10000).
+    # Background bytes are verified above; the actual rendered window is captured below.
     layout_result = run('osascript', '-e', finder, check=False)
     (out / 'macos-layout.txt').write_text(layout_result.stdout)
     run('screencapture', '-x', str(out / 'macos-dmg.png'))
