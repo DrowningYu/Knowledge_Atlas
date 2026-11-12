@@ -13,7 +13,19 @@
 
 插件按 OpenAI 文档手工制作，没有调用尚未连接的 Plugin Creator。GitHub 分支分发不等于已通过 OpenAI 公共插件目录审核。
 
-## A. 普通 ChatGPT 聊天
+## A. 普通 ChatGPT 聊天（推荐应用内连接）
+
+从 0.1.3 起，Knowledge Atlas 内置官方隧道运行程序，不需要安装 Node.js 或保持终端打开：
+
+1. 安装 [0.1.3 或更新版本](https://github.com/DrowningYu/Knowledge_Atlas/releases)，打开右上角设置。
+2. 在「ChatGPT 普通聊天」中点击「打开隧道设置」，在自己的 Platform 组织创建隧道，完成与 ChatGPT 工作区的关联，并创建有隧道使用权限的运行密钥。
+3. 回到应用填入隧道 ID 和运行密钥，点击「保存并连接」。可以选择保存到系统凭据库、下次打开应用自动连接，以及关窗口后继续在菜单栏／托盘运行。
+4. 等待状态变为「已就绪」，点击「打开 ChatGPT 插件」。在 `+ → Add custom MCP server` 选择 `Connection: Tunnel`，选中自己的隧道，MCP 认证选择 **No authentication**，再完成 `Create as a plugin` 和安装。应用会自动向本地 MCP 添加 Bearer 认证，不需要复制本地令牌。
+5. 在普通聊天选用新连接，先列出地图，再在测试地图上验证读写。需要附带下述操作指引 ZIP 时，继续使用 A.1 第 5 步的打包命令；ZIP 的账号绑定方式没有变化。
+
+首次绑定仍需自己操作账号页面。后台功能不等于开机自启；电脑休眠或离线时无法读取本地地图。完整说明见 [后台连接指南](../../docs/chatgpt-background.md)。
+
+## A.1 手动隧道方式（旧版或高级配置）
 
 1. 在自己的电脑安装并启动 Knowledge Atlas（推荐 0.1.2），安装 Node.js 22。下载 `chatgpt-plugin` 分支并放在固定目录。
 2. 按 [Secure MCP Tunnel 官方说明](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)，在 Platform 创建隧道，关联你使用的 ChatGPT 工作区和 Platform 组织；准备具有隧道使用权限的运行密钥，安装官方 `tunnel-client`。密钥仅在本机设置为 `CONTROL_PLANE_API_KEY`，不要写进聊天、仓库或 ZIP。

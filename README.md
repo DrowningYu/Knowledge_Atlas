@@ -14,7 +14,7 @@
 
 ## ChatGPT 插件分支
 
-本分支包含 0.1.2 界面修复及 ChatGPT 接入适配。普通聊天先注册自己的安全隧道连接，再生成账号绑定的插件 ZIP；本地桌面包只适用于支持本地执行的会话。
+本分支包含 0.1.3 后台隧道集成及 ChatGPT 接入适配。普通聊天先注册自己的安全隧道连接，再生成账号绑定的插件 ZIP；本地桌面包只适用于支持本地执行的会话。
 
 - [完整安装步骤与验证范围](plugins/knowledge-atlas/README.md)
 - [下载桌面本地插件 ZIP](downloads/knowledge-atlas-desktop-0.1.0.zip)
