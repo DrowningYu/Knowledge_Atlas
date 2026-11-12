@@ -42,7 +42,7 @@ try:
     assert any(p.read_bytes() == expected for p in backgrounds), 'Background missing or different'
     with (app / 'Contents/Info.plist').open('rb') as f:
         info = plistlib.load(f)
-    assert info['CFBundleShortVersionString'] == '0.1.1'
+    assert info['CFBundleShortVersionString'] == json.loads(pathlib.Path('package.json').read_text())['version']
     signature = run('codesign', '--verify', '--deep', '--strict', '--verbose=2', str(app)).stdout
     (out / 'macos-signature.txt').write_text(signature + run('codesign', '-d', '--verbose=4', str(app)).stdout)
     # Ad-hoc signing seals resources, but is NOT Apple Developer ID notarization.

@@ -126,6 +126,12 @@ fn main() {
                     ],
                 },
             ))?;
+            // Discover the actual loopback port even when the preferred port was occupied.
+            // No credential is included; the token remains in its existing private file.
+            fs::write(
+                dir.join("mcp-endpoint.json"),
+                serde_json::to_vec(&serde_json::json!({"url": format!("http://127.0.0.1:{}/mcp", server.port)}))?,
+            )?;
             let server = Arc::new(server);
             let mut events = store.subscribe();
             let handle = app.handle().clone();

@@ -105,12 +105,45 @@ function IconButton({
     </button>
   );
 }
+type MenuAction = { label: string; run: () => void | Promise<unknown>; disabled?: boolean; danger?: boolean };
+type MenuState = { x: number; y: number; actions: MenuAction[] };
+function ContextMenu({ menu, close }: { menu: MenuState; close: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current!;
+    const box = el.getBoundingClientRect();
+    el.style.left = Math.max(8, Math.min(menu.x, window.innerWidth - box.width - 8)) + "px";
+    el.style.top = Math.max(8, Math.min(menu.y, window.innerHeight - box.height - 8)) + "px";
+    el.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    const outside = (e: PointerEvent) => { if (!el.contains(e.target as globalThis.Node)) close(); };
+    const dismiss = () => close();
+    window.addEventListener("pointerdown", outside);
+    window.addEventListener("resize", dismiss);
+    return () => { window.removeEventListener("pointerdown", outside); window.removeEventListener("resize", dismiss); };
+  }, [menu]);
+  return <div ref={ref} className="context-menu" role="menu" aria-label="快捷操作"
+    style={{ left: menu.x, top: menu.y }} onContextMenu={e => e.preventDefault()}
+    onKeyDown={e => {
+      if (e.key === "Escape" || e.key === "Tab") { close(); return; }
+      if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+      e.preventDefault();
+      const buttons = Array.from(ref.current!.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+      const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : (at + (e.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    }}>
+    {menu.actions.map(action => <button key={action.label} role="menuitem" disabled={action.disabled}
+      className={action.danger ? "danger" : ""} onClick={() => { close(); void action.run(); }}>{action.label}</button>)}
+  </div>;
+}
 type PanelData = {
   title: string;
   subtitle: string;
   rows: Concept[];
   selected: string;
   root: boolean;
+  expanded: string | undefined;
+  context: (event: React.MouseEvent, node: Concept) => void;
   select: (id: string) => void;
   expand: (id: string) => void;
   hasChildren: (id: string) => boolean;
@@ -139,6 +172,7 @@ function ListPanel({ data }: NodeProps<Node<PanelData>>) {
             "concept-row " + (data.selected === n.id ? "selected" : "")
           }
           onClick={() => data.select(n.id)}
+          onContextMenu={(e) => data.context(e, n)}
         >
           <div className="row-status">
             <button
@@ -207,15 +241,16 @@ function ListPanel({ data }: NodeProps<Node<PanelData>>) {
           </div>
           <button
             className="row-expand nodrag"
-            title="展开前置知识"
-            aria-label={"展开 " + n.title}
+            title={data.expanded === n.id ? "收起前置知识" : "展开前置知识"}
+            aria-label={(data.expanded === n.id ? "收起 " : "展开 ") + n.title}
+            aria-expanded={data.expanded === n.id}
             onClick={(e) => {
               e.stopPropagation();
               data.expand(n.id);
             }}
             disabled={!data.hasChildren(n.id)}
           >
-            <ChevronRight size={16} />
+            {data.expanded === n.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
           <Handle
             type="source"
@@ -274,6 +309,7 @@ function App() {
     [dialogTitle, setDialogTitle] = useState(""),
     [dialogTarget, setDialogTarget] = useState(""),
     [conflict, setConflict] = useState(false);
+  const [contextMenu, setContextMenu] = useState<MenuState | null>(null);
   const savingRef = useRef<Promise<boolean> | null>(null);
   const graphRef = useRef(graph),
     dirtyRef = useRef(dirty),
@@ -338,9 +374,10 @@ function App() {
     return job;
   }, [refreshMaps]);
   const load = async (id: string) => {
-    if (!(await save())) return;
+    if (!(await save())) return false;
     try {
       const g = await api<Graph>("get_map", { map_id: id });
+      graphRef.current = g;
       setGraph(g);
       setSelected(g.root_id);
       setDraft(g.nodes.find((n) => n.id === g.root_id) || null);
@@ -349,8 +386,10 @@ function App() {
       setConflict(false);
       setQuery("");
       setError("");
+      return true;
     } catch (e) {
       fail(e);
+      return false;
     }
   };
   useEffect(() => {
@@ -500,11 +539,39 @@ function App() {
   const expand = async (id: string, at: number) => {
     if (!(await save())) return;
     await select(id);
-    const n = graphRef.current?.nodes.find((n) => n.id === id);
-    if (n?.collapsed)
-      await patch([{ op: "upsert_node", node: { ...n, collapsed: false } }]);
-    setPath((p) => [...p.slice(0, at), id].slice(0, depth));
+    const g = graphRef.current;
+    const n = g?.nodes.find((n) => n.id === id);
+    if (!n || !g?.edges.some(e => e.source === id) || at >= depth) return;
+    const collapsing = path[at] === id;
+    if (n.collapsed !== collapsing) {
+      const updated = await patch([{ op: "upsert_node", node: { ...n, collapsed: collapsing } }]);
+      if (!updated) return;
+    }
+    setPath(p => collapsing ? p.slice(0, at) : [...p.slice(0, at), id].slice(0, depth));
   };
+  const showMenu = (e: React.MouseEvent | MouseEvent, actions: MenuAction[]) => {
+    e.preventDefault(); e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, actions });
+  };
+  const mapMenu = (e: React.MouseEvent, m: MapSummary) => {
+    const withMap = async (action: () => void | Promise<unknown>) => {
+      if (graphRef.current?.id !== m.id && !(await load(m.id))) return;
+      await action();
+    };
+    showMenu(e, [
+      { label: "打开地图", run: () => load(m.id) },
+      { label: "重命名地图", run: () => withMap(() => { setDialogTitle(m.title); setMapDialog("rename"); }) },
+      { label: "导出 JSON", run: () => withMap(() => exportFile("json")) },
+      { label: "删除地图", danger: true, run: () => withMap(() => setMapDialog("delete-map")) },
+    ]);
+  };
+  const nodeMenu = (e: React.MouseEvent, n: Concept, at: number) => showMenu(e, [
+    { label: "查看详情", run: async () => { if (!(await save())) return; await select(n.id); setInspectorClosed(false); } },
+    { label: path[at] === n.id ? "收起前置知识" : "展开前置知识", disabled: !graph?.edges.some(edge => edge.source === n.id) || at >= depth || path.slice(0, at).includes(n.id), run: () => expand(n.id, at) },
+    { label: "复制 AI 提问", run: () => copyAI(n) },
+    ...Object.entries(statusNames).map(([status, label]) => ({ label: "标记为" + label, run: () => rowStatus(n, status as Status) })),
+    { label: "删除节点", danger: true, disabled: n.id === graph?.root_id, run: async () => { if (!(await save())) return; await select(n.id); setMapDialog("delete-node"); } },
+  ]);
   const rowStatus = (node: Concept, status: Status) => {
     if (node.id === draftRef.current?.id) {
       setDraft({ ...draftRef.current, status });
@@ -536,6 +603,8 @@ function App() {
           rows: [root],
           selected,
           root: true,
+          expanded: path[0],
+          context: (e, n) => nodeMenu(e, n, 0),
           select: (id) => expand(id, 0),
           expand: (id) => expand(id, 0),
           hasChildren: (id) => prerequisites(id).length > 0,
@@ -567,6 +636,8 @@ function App() {
           rows,
           selected,
           root: false,
+          expanded: path[i + 1],
+          context: (e, n) => nodeMenu(e, n, i + 1),
           select: (id) => {
             if (!path.slice(0, i + 1).includes(id)) expand(id, i + 1);
             else void select(id);
@@ -861,7 +932,10 @@ function App() {
         </div>
       </header>
       <aside className="sidebar">
-        <div className="section-heading">
+        <div className="section-heading" onContextMenu={e => showMenu(e, [
+          { label: "新建地图", run: createMap },
+          { label: "导入 JSON", run: () => fileRef.current?.click() },
+        ])}>
           知识地图
           <IconButton title="新建地图" onClick={() => void createMap()}>
             <Plus size={16} />
@@ -884,7 +958,8 @@ function App() {
               <button
                 key={m.id}
                 className={"map-item " + (graph?.id === m.id ? "active" : "")}
-                onClick={() => void load(m.id)}
+                onClick={() => { setContextMenu(null); void load(m.id); }}
+                onContextMenu={e => mapMenu(e, m)}
               >
                 <BookOpen size={16} />
                 <span>{m.title}</span>
@@ -1037,6 +1112,12 @@ function App() {
               edges={lines}
               nodeTypes={nodeTypes}
               nodesDraggable={false}
+              onPaneContextMenu={e => showMenu(e, [
+                { label: "适应画布", run: () => flow.fitView({ duration: 250, padding: 0.18 }) },
+                { label: "收起全部", run: () => setPath([]) },
+                { label: "撤销", run: () => history("undo") },
+                { label: "重做", run: () => history("redo") },
+              ])}
               nodesConnectable={false}
               elementsSelectable={false}
               minZoom={0.25}
@@ -1079,7 +1160,7 @@ function App() {
               </span>
             ))}
             <span className="legend-divider" />
-            点击行查看 · 点击 › 展开
+            点击行展开 / 收起 · 右键快捷操作
           </div>
         </div>
       </main>
@@ -1429,6 +1510,7 @@ function App() {
           </div>
         )}
       </aside>
+      {contextMenu && <ContextMenu menu={contextMenu} close={() => setContextMenu(null)} />}
       {(error || message || conflict) && (
         <div className={"toast " + (error ? "error" : "")}>
           {conflict ? (

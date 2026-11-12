@@ -154,6 +154,18 @@ try {
     async () => (await page.locator(".graph-panel").count()) === 3,
     "branch expands",
   );
+  // Repeated row click collapses only its descendants; arrow toggles too.
+  const branchRow = page.getByTestId("panel-1").locator(`[data-node-id="${branches[0]}"]`);
+  await branchRow.locator(".row-copy").click();
+  await poll(async () => (await page.locator(".graph-panel").count()) === 2, "repeat click collapses branch");
+  await poll(async () => (await graph()).nodes.find(n => n.id === branches[0]).collapsed, "collapsed flag persisted");
+  await branchRow.locator(".row-expand").click();
+  await poll(async () => (await page.locator(".graph-panel").count()) === 3, "arrow reopens branch");
+  assert.equal(await branchRow.locator(".row-expand").getAttribute("aria-expanded"), "true");
+  await branchRow.locator(".row-expand").click();
+  await poll(async () => (await page.locator(".graph-panel").count()) === 2, "arrow closes branch");
+  await branchRow.locator(".row-copy").click();
+  await poll(async () => (await page.locator(".graph-panel").count()) === 3, "row reopens branch");
   const initialPosition = await page.getByTestId("panel-1").boundingBox();
   await page
     .getByTestId("panel-1")
@@ -434,6 +446,37 @@ try {
   await page
     .getByRole("heading", { name: "E2E new map", exact: true })
     .waitFor();
+  // Context operations must target the right-clicked map, including inactive maps.
+  const newMapId = (await call("list_maps")).find(m => m.title === "E2E new map").id;
+  const importedButton = page.locator(".map-item").filter({ hasText: imported.title });
+  await importedButton.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "重命名地图", exact: true }).click();
+  await page.getByPlaceholder("例如：理解 PID 控制").fill("Renamed via context");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await poll(async () => (await call("get_map", { map_id: imported.id })).title === "Renamed via context", "context rename inactive map");
+  assert.equal((await call("get_map", { map_id: newMapId })).title, "E2E new map");
+  await page.locator(".map-item").filter({ hasText: "E2E new map" }).click();
+  await page.locator(".map-item").filter({ hasText: "Renamed via context" }).click({ button: "right" });
+  await page.screenshot({ path: path.join(out, "06-map-context-menu.png") });
+  await page.getByRole("menuitem", { name: "删除地图", exact: true }).click();
+  await page.getByRole("button", { name: "取消", exact: true }).last().click();
+  assert.ok((await call("list_maps")).some(m => m.id === imported.id), "cancel keeps map");
+  await page.locator(".map-item").filter({ hasText: "Renamed via context" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "删除地图", exact: true }).click();
+  await page.getByRole("button", { name: "确认删除", exact: true }).click();
+  await poll(async () => !(await call("list_maps")).some(m => m.id === imported.id), "context deletes correct map");
+  assert.ok((await call("list_maps")).some(m => m.id === newMapId));
+  await page.getByRole("button", { name: "恢复最近删除地图", exact: true }).click();
+  await poll(async () => (await call("list_maps")).some(m => m.id === imported.id), "context deletion recoverable");
+  await page.getByTestId("panel-0").locator(".row-copy").click({ button: "right" });
+  assert.equal(await page.getByRole("menuitem", { name: "删除节点", exact: true }).isDisabled(), true, "root protected");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.getByRole("menu").count(), 0);
+  await page.getByTestId("panel-0").locator(".row-copy").click();
+  await poll(async () => (await page.locator(".graph-panel").count()) === 2, "root expands");
+  await page.getByTestId("panel-0").locator(".row-copy").click();
+  await poll(async () => (await page.locator(".graph-panel").count()) === 1, "root second click collapses all");
+  assert.equal(await page.locator(".brand-mark").evaluate(el => getComputedStyle(el).backgroundColor), "rgba(0, 0, 0, 0)");
   assert.deepEqual(errors, [], "no uncaught browser errors");
   assert.deepEqual(remote, [], "no external requests");
   console.log(

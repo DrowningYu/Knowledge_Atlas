@@ -4,21 +4,21 @@
 
 ## 下载
 
-在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.1) 的 **Assets** 中下载对应系统的安装包：
+在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.2) 的 **Assets** 中下载对应系统的安装包：
 
 | 系统 | 文件 |
 | --- | --- |
-| Windows x64 | `Knowledge-Atlas-0.1.1-Windows-x64.exe` |
-| Mac Intel | `Knowledge-Atlas-0.1.1-macOS-Intel.dmg` |
-| Mac Apple Silicon（M 系列） | `Knowledge-Atlas-0.1.1-macOS-Apple-Silicon.dmg` |
-| Linux amd64（Ubuntu 24.04） | `Knowledge-Atlas-0.1.1-Linux-amd64.deb` |
+| Windows x64 | `Knowledge-Atlas-0.1.2-Windows-x64.exe` |
+| Mac Intel | `Knowledge-Atlas-0.1.2-macOS-Intel.dmg` |
+| Mac Apple Silicon（M 系列） | `Knowledge-Atlas-0.1.2-macOS-Apple-Silicon.dmg` |
+| Linux amd64（Ubuntu 24.04） | `Knowledge-Atlas-0.1.2-Linux-amd64.deb` |
 
-`SHA256SUMS.txt` 可用于校验下载完整性。Source code 是源码；普通用户选择上面的安装包即可。Windows 安装包尚未代码签名；Mac 使用 ad-hoc 签名，尚未完成 Developer ID 签名和公证。Mac 首次打开请参阅 [安装说明](docs/releases/v0.1.1.md#mac-首次打开)。
+`SHA256SUMS.txt` 可用于校验下载完整性。Source code 是源码；普通用户选择上面的安装包即可。Windows 安装包尚未代码签名；Mac 使用 ad-hoc 签名，尚未完成 Developer ID 签名和公证。Mac 首次打开请参阅 [安装说明](docs/releases/v0.1.2.md#mac-首次打开)。
 
 ## 快速上手
 
 1. 启动应用，首次创建包含 21 个知识点、34 条关系的 PID 控制演示地图；也附有 `examples/pid-control.json`。
-2. 点击目标知识，右侧展开直接前置知识列表；继续点击列表项逐层探索。上方面包屑可以返回，画布支持平移、缩放和适应内容。
+2. 点击目标知识，右侧展开直接前置知识列表；继续点击列表项逐层探索，再次点击同一行或箭头即可收起其后续分支。右键地图、节点或画布可打开快捷操作菜单。上方面包屑可以返回，画布支持平移、缩放和适应内容。
 3. 在详情栏编辑标题、摘要、Markdown、笔记和学习状态；更改自动保存。依赖页可以新建知识点或引用已有知识点。
 4. 撤销/重做使用工具栏或 Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z（文本框保留系统文本撤销）。删除地图后可从左侧恢复最近删除项。历史跨重启保留。
 5. 「MCP 设置」复制当前服务地址和客户端配置，在支持 Streamable HTTP 的 AI 客户端中连接。应用必须保持运行。
@@ -130,7 +130,7 @@ npm run tauri -- build --bundles deb
 | `Knowledge-Atlas-macOS-Apple-Silicon` | Apple Silicon `.dmg` |
 | `Knowledge-Atlas-Linux-amd64` | Linux `.deb` |
 
-Artifact 保留 14 天，日常构建不会自动发布版本。v0.1.1 安装包在全部测试和打包通过后保存到 [Releases](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.1)，可以直接下载。构建通过不代表桌面实机验收；验证范围记录在 [VALIDATION.md](VALIDATION.md)。
+Artifact 保留 14 天，日常构建不会自动发布版本。v0.1.2 安装包在全部测试和打包通过后保存到 [Releases](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.2)，可以直接下载。构建通过不代表桌面实机验收；验证范围记录在 [VALIDATION.md](VALIDATION.md)。
 
 平台依赖与打包参考：[Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/)、[Windows 安装器](https://v2.tauri.app/distribute/windows-installer/)、[macOS DMG](https://v2.tauri.app/distribute/dmg/)。
 
