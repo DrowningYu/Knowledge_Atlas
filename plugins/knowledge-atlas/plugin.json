@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "knowledge-atlas",
+  "version": "0.1.0",
+  "description": "Read and update local Knowledge Atlas maps through their MCP API.",
+  "author": { "name": "Knowledge Atlas contributors" },
+  "repository": "https://github.com/DrowningYu/Knowledge_Atlas",
+  "license": "MIT",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Knowledge Atlas",
+        "shortDescription": "探索、解释和更新本地知识地图",
+        "longDescription": "通过 MCP 读取地图、解释前置知识、保存笔记并更新学习状态。桌面本地连接需要应用运行及 Node.js 22；普通云端聊天需要先注册安全隧道连接。",
+        "developerName": "Knowledge Atlas contributors",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "defaultPrompt": ["列出我的知识地图", "解释这个知识点的前置知识", "把我刚才的理解保存到地图里"],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      }
+    }
+  }
+}

@@ -2,6 +2,16 @@
 
 本地优先的知识探索桌面应用。把目标知识的前置概念逐层展开为横向列表，同级知识留在同一个面板中。编辑、历史记录和 AI 修改全部写入 SQLite。桌面运行不需要 Node.js、云数据库或联网账号。
 
+## ChatGPT 插件分支
+
+本分支包含 0.1.2 界面修复及 ChatGPT 接入适配。普通聊天先注册自己的安全隧道连接，再生成账号绑定的插件 ZIP；本地桌面包只适用于支持本地执行的会话。
+
+- [完整安装步骤与验证范围](plugins/knowledge-atlas/README.md)
+- [下载桌面本地插件 ZIP](downloads/knowledge-atlas-desktop-0.1.0.zip)
+- 普通聊天包：`python3 scripts/package-plugin.py --app-id <你的已注册连接ID>`
+- 运行转接器测试：`cargo build --locked -p atlas-server && node tests/plugin.mjs`
+- 包结构测试：`python3 tests/plugin-package.py`
+
 ## 下载
 
 在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.2) 的 **Assets** 中下载对应系统的安装包：

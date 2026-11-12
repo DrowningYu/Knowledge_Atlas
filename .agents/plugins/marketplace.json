@@ -1,0 +1,10 @@
+{
+  "name": "knowledge-atlas-local",
+  "interface": { "displayName": "Knowledge Atlas Local" },
+  "plugins": [{
+    "name": "knowledge-atlas",
+    "source": { "source": "local", "path": "./plugins/knowledge-atlas" },
+    "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+    "category": "Productivity"
+  }]
+}
