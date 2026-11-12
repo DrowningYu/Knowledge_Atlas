@@ -7,9 +7,10 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 export function appDataDir(platform = process.platform, env = process.env, home = homedir()) {
-  if (platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'app.knowledgeatlas.desktop');
-  if (platform === 'win32') return path.join(env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'app.knowledgeatlas.desktop');
-  return path.join(env.XDG_DATA_HOME || path.join(home, '.local', 'share'), 'app.knowledgeatlas.desktop');
+  const paths = platform === 'win32' ? path.win32 : path.posix;
+  if (platform === 'darwin') return paths.join(home, 'Library', 'Application Support', 'app.knowledgeatlas.desktop');
+  if (platform === 'win32') return paths.join(env.APPDATA || paths.join(home, 'AppData', 'Roaming'), 'app.knowledgeatlas.desktop');
+  return paths.join(env.XDG_DATA_HOME || paths.join(home, '.local', 'share'), 'app.knowledgeatlas.desktop');
 }
 
 export function validateEndpoint(value) {

@@ -9,7 +9,7 @@ import { appDataDir, validateEndpoint } from '../plugins/knowledge-atlas/server/
 for (const bad of ['https://example.com/mcp', 'http://127.0.0.1/api', 'http://127.0.0.1@evil.com/mcp', 'http://localhost/mcp?token=x']) assert.throws(() => validateEndpoint(bad));
 assert.equal(validateEndpoint('http://127.0.0.1:38473/mcp'), 'http://127.0.0.1:38473/mcp');
 assert.ok(appDataDir('darwin', {}, '/Users/test').endsWith('Library/Application Support/app.knowledgeatlas.desktop'));
-assert.ok(appDataDir('win32', { APPDATA: '/test/Roaming' }, '/test').includes('Roaming'));
+assert.equal(appDataDir('win32', { APPDATA: 'C:\\Users\\test\\AppData\\Roaming' }, 'C:\\Users\\test'), 'C:\\Users\\test\\AppData\\Roaming\\app.knowledgeatlas.desktop');
 assert.ok(appDataDir('linux', { XDG_DATA_HOME: '/test/data' }, '/test').includes('/test/data/'));
 const temp = await mkdtemp(path.join(tmpdir(), 'atlas-plugin-'));
 const tokenFile = path.join(temp, 'mcp.token');
