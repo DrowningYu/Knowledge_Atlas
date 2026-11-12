@@ -8,6 +8,7 @@ use rmcp::{
     ServiceExt,
 };
 use serde_json::{json, Value};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 #[tokio::test]
 async fn official_sdk_roundtrip_and_security() -> anyhow::Result<()> {
     let store = Store::open(":memory:")?;
@@ -119,16 +120,28 @@ async fn official_sdk_roundtrip_and_security() -> anyhow::Result<()> {
     dispatch(&store, "restore_deleted_map", json!({}))?;
     assert!(store.get_map(id).is_ok());
     assert!(server.info()["last_seen"].is_number());
-    assert_eq!(
-        http.post(format!("{base}/api"))
-            .bearer_auth(token)
-            .header("Content-Type", "application/json")
-            .body("x".repeat(2 * 1024 * 1024 + 1))
-            .send()
-            .await?
-            .status(),
-        413
-    );
+    // The limit layer rejects Content-Length before consuming the body. Sending
+    // 2 MiB concurrently with that response can surface a Windows socket abort
+    // instead of the 413. Use the HTTP Expect handshake and inspect the actual
+    // server response before uploading, rather than accepting a transport error.
+    // https://docs.rs/tower-http/0.6.11/tower_http/limit/index.html
+    for route in ["/api", "/mcp"] {
+        let mut socket = tokio::net::TcpStream::connect(("127.0.0.1", server.port)).await?;
+        let headers = format!(
+            "POST {route} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nExpect: 100-continue\r\nConnection: close\r\n\r\n",
+            server.port,
+            2 * 1024 * 1024 + 1,
+        );
+        socket.write_all(headers.as_bytes()).await?;
+        let mut reader = BufReader::new(socket);
+        let mut status = String::new();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            reader.read_line(&mut status),
+        )
+        .await??;
+        assert!(status.starts_with("HTTP/1.1 413 "), "{route}: {status}");
+    }
     client.cancel().await?;
     server.shutdown();
     Ok(())
