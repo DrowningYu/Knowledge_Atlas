@@ -14,7 +14,7 @@ args = parser.parse_args()
 if args.app_id and not re.fullmatch(r'plugin_asdk_app_[A-Za-z0-9_-]+', args.app_id):
     parser.error('--app-id must be the actual registered plugin_asdk_app... ID, not a URL or a tunnel ID')
 source = root / 'plugins/knowledge-atlas'
-manifest = json.loads((source / 'plugin.json').read_text())
+manifest = json.loads((source / 'plugin.json').read_text(encoding='utf-8'))
 mode = 'chatgpt' if args.app_id else 'desktop'
 output = args.output or root / 'artifacts/plugins' / f'knowledge-atlas-{mode}-{manifest["version"]}.zip'
 package_files = ['plugin.json', 'mcp.json', 'README.md', 'server/stdio.mjs', 'skills/knowledge-atlas/SKILL.md', 'assets/icon.png']

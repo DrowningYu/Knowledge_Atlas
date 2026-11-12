@@ -31,13 +31,17 @@ jobs:
           set -o pipefail
           mkdir -p artifacts/plugin-test
           node tests/plugin.mjs 2>&1 | tee artifacts/plugin-test/result.txt
+      - name: Test plugin packaging
+        shell: bash
+        run: |
+          set -o pipefail
+          python tests/plugin-package.py 2>&1 | tee artifacts/plugin-test/packaging.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: plugin-test-${{ runner.os }}
           path: artifacts/plugin-test/
           if-no-files-found: ignore
-      - run: python tests/plugin-package.py
       - run: python scripts/package-plugin.py
       - uses: actions/upload-artifact@v4
         with:
