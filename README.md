@@ -1,3 +1,13 @@
+## ChatGPT 后台连接（0.1.3）
+
+打开右上角设置，在「ChatGPT 普通聊天」中按引导创建隧道并填写运行密钥，点击「保存并连接」。应用内置 OpenAI tunnel-client-runtime，无需另外装 Node 或保持终端窗口。
+
+可以记住密钥、下次打开应用自动连接、关闭窗口后留在菜单栏／托盘运行。菜单中可重新打开应用、断开连接或完全退出。断开只停止当前连接；清除设置还会删除保存的凭据。电脑休眠／离线时连接会暂停。
+
+密钥保存在 macOS Keychain、Windows Credential Manager 或 Linux Secret Service；凭据库不可用时可取消「记住密钥」，仅本次使用。不会退回明文保存。连接状态同时检查云端成功轮询和本地 MCP 启动探测；「已就绪」不代替 ChatGPT 账号首次绑定与实际工具调用验证。首次绑定见 [后台连接指南](docs/chatgpt-background.md)。
+
+开发构建前运行 `python3 scripts/prepare-tunnel.py <Rust目标三元组>`，下载并核对固定版本的官方运行程序与许可证。发布流程自动完成此步骤。
+
 # Knowledge Atlas
 
 本地优先的知识探索桌面应用。把目标知识的前置概念逐层展开为横向列表，同级知识留在同一个面板中。编辑、历史记录和 AI 修改全部写入 SQLite。桌面运行不需要 Node.js、云数据库或联网账号。
@@ -14,7 +24,7 @@
 
 ## 下载
 
-在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.2) 的 **Assets** 中下载对应系统的安装包：
+在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.3) 的 **Assets** 中下载对应系统的安装包：
 
 | 系统 | 文件 |
 | --- | --- |
@@ -23,7 +33,7 @@
 | Mac Apple Silicon（M 系列） | `Knowledge-Atlas-0.1.2-macOS-Apple-Silicon.dmg` |
 | Linux amd64（Ubuntu 24.04） | `Knowledge-Atlas-0.1.2-Linux-amd64.deb` |
 
-`SHA256SUMS.txt` 可用于校验下载完整性。Source code 是源码；普通用户选择上面的安装包即可。Windows 安装包尚未代码签名；Mac 使用 ad-hoc 签名，尚未完成 Developer ID 签名和公证。Mac 首次打开请参阅 [安装说明](docs/releases/v0.1.2.md#mac-首次打开)。
+`SHA256SUMS.txt` 可用于校验下载完整性。Source code 是源码；普通用户选择上面的安装包即可。Windows 安装包尚未代码签名；Mac 使用 ad-hoc 签名，尚未完成 Developer ID 签名和公证。Mac 首次打开请参阅 [安装说明](docs/releases/v0.1.3.md#mac-首次打开)。
 
 ## 快速上手
 
@@ -140,7 +150,7 @@ npm run tauri -- build --bundles deb
 | `Knowledge-Atlas-macOS-Apple-Silicon` | Apple Silicon `.dmg` |
 | `Knowledge-Atlas-Linux-amd64` | Linux `.deb` |
 
-Artifact 保留 14 天，日常构建不会自动发布版本。v0.1.2 安装包在全部测试和打包通过后保存到 [Releases](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.2)，可以直接下载。构建通过不代表桌面实机验收；验证范围记录在 [VALIDATION.md](VALIDATION.md)。
+Artifact 保留 14 天，日常构建不会自动发布版本。v0.1.3 安装包在全部测试和打包通过后保存到 [Releases](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.3)，可以直接下载。构建通过不代表桌面实机验收；验证范围记录在 [VALIDATION.md](VALIDATION.md)。
 
 平台依赖与打包参考：[Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/)、[Windows 安装器](https://v2.tauri.app/distribute/windows-installer/)、[macOS DMG](https://v2.tauri.app/distribute/dmg/)。
 

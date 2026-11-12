@@ -17,3 +17,6 @@ __pycache__/
 .DS_Store
 dev-data/
 scripts/local-env.sh
+
+src-tauri/binaries/
+src-tauri/resources/tunnel/

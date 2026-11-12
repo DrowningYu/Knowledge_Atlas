@@ -1,3 +1,4 @@
+import { TunnelSettings } from "./TunnelSettings";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -1566,12 +1567,15 @@ function App() {
             <div className="modal-heading">
               <div>
                 <span className="eyebrow">LOCAL FIRST</span>
-                <h2>MCP 连接设置</h2>
+                <h2>AI 连接设置</h2>
               </div>
               <IconButton title="关闭设置" onClick={() => setSettings(false)}>
                 <X size={18} />
               </IconButton>
             </div>
+            <TunnelSettings />
+            <details className="local-mcp-settings">
+            <summary>本地 MCP 客户端配置</summary>
             <p className="muted">
               让支持 MCP 的 AI 客户端直接读取和更新本地知识图谱。
             </p>
@@ -1654,6 +1658,7 @@ function App() {
                 </button>
               </>
             )}
+            </details>
           </div>
         </div>
       )}

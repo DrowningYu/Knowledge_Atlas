@@ -401,7 +401,8 @@ try {
     await route.fulfill({ response });
   });
   await page.getByRole("button", { name: "MCP 设置", exact: true }).click();
-  await page.getByRole("heading", { name: "MCP 连接设置" }).waitFor();
+  await page.getByRole("heading", { name: "AI 连接设置" }).waitFor();
+  await page.getByText("本地 MCP 客户端配置", { exact: true }).click();
   await poll(
     async () => /运行中/.test(await page.locator(".connection-status").textContent()),
     "settings receives the real MCP connection status",

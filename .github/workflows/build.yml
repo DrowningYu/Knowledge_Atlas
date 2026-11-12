@@ -26,6 +26,7 @@ jobs:
       - run: cargo build --locked -p atlas-server
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - run: node tests/tunnel-ui.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -92,6 +93,14 @@ jobs:
           codesign -d --verbose=4 "$RUNNER_TEMP/previous-mount/Knowledge Atlas.app" >> artifacts/ci/previous-macos-signature.txt 2>&1 || true
           hdiutil detach "$RUNNER_TEMP/previous-mount"
           osascript -e 'tell application "Finder" to activate'
+      - name: Prepare bundled tunnel runtime
+        run: python scripts/prepare-tunnel.py ${{ matrix.target }}
+      - name: Test desktop connection manager
+        run: cargo test --locked -p knowledge-atlas
+      - name: Test bundled runtime with local fixture
+        run: |
+          cargo build --locked -p atlas-server
+          python tests/tunnel-runtime.py ${{ matrix.target }}
       - name: Build desktop installer
         shell: bash
         run: |
