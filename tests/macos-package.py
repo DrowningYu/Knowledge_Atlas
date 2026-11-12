@@ -9,12 +9,18 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import urllib.request
 
 assert sys.platform == 'darwin' and os.environ.get('GITHUB_ACTIONS') == 'true', 'Use a disposable GitHub macOS runner'
 dmg = pathlib.Path(sys.argv[1]).resolve()
 out = pathlib.Path('artifacts/ci').resolve()
 out.mkdir(parents=True, exist_ok=True)
+def record_failure(kind, value, tb):
+    details = ''.join(traceback.format_exception(kind, value, tb))
+    (out / 'macos-failure.txt').write_text(details)
+    sys.__excepthook__(kind, value, tb)
+sys.excepthook = record_failure
 
 def run(*args, check=True):
     result = subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
@@ -55,8 +61,8 @@ try:
       if item 1 of b is not 480 or item 2 of b is not 170 then error "Applications icon misplaced"
       return {a, b, background picture of icon view options of installWindow}
     end tell''' % (volume, volume)
-    layout = run('osascript', '-e', finder).stdout
-    (out / 'macos-layout.txt').write_text(layout)
+    layout_result = run('osascript', '-e', finder, check=False)
+    (out / 'macos-layout.txt').write_text(layout_result.stdout)
     run('screencapture', '-x', str(out / 'macos-dmg.png'))
     # Copy out of the disk image just as drag-to-Applications would, then recheck the copy.
     installed = pathlib.Path(tempfile.mkdtemp(prefix='atlas-installed-')) / app.name
@@ -83,7 +89,8 @@ try:
         time.sleep(5)
         assert proc.poll() is None, 'Native app exited unexpectedly'
         run('screencapture', '-x', str(out / 'macos-app.png'))
-        (out / 'macos-result.json').write_text(json.dumps({'version':info['CFBundleShortVersionString'],'dmg_sha256':hashlib.sha256(dmg.read_bytes()).hexdigest(),'sealed_signature':True,'finder_layout':True,'native_startup':True,'demo_nodes':len(graph['nodes']),'gatekeeper_exit':assessment.returncode,'notarized':False}, indent=2))
+        (out / 'macos-result.json').write_text(json.dumps({'version':info['CFBundleShortVersionString'],'dmg_sha256':hashlib.sha256(dmg.read_bytes()).hexdigest(),'sealed_signature':True,'finder_layout':layout_result.returncode == 0,'native_startup':True,'demo_nodes':len(graph['nodes']),'gatekeeper_exit':assessment.returncode,'notarized':False}, indent=2))
+    assert layout_result.returncode == 0, layout_result.stdout
     print('DMG integrity, arrow layout, app signature, installed copy and native startup passed')
 finally:
     if proc is not None:

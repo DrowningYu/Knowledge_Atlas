@@ -101,7 +101,9 @@ jobs:
       - name: Verify final Mac installer and native startup
         if: runner.os == 'macOS'
         shell: bash
-        run: python3 tests/macos-package.py target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+        run: |
+          set -o pipefail
+          python3 tests/macos-package.py target/${{ matrix.target }}/release/bundle/dmg/*.dmg 2>&1 | tee artifacts/ci/macos-package.log
       - name: Preserve platform diagnostics
         uses: actions/upload-artifact@v4
         if: always()
@@ -111,6 +113,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: Knowledge-Atlas-${{ matrix.label }}
           path: |
