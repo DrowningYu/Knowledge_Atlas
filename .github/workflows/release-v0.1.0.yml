@@ -1,0 +1,107 @@
+name: Publish v0.1.0 installers
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-v0.1.0.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: publish-v0.1.0
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: write
+    env:
+      SOURCE_SHA: d5b07fc6f06fd27040d0cafd0bf33be4d693f927
+      SOURCE_RUN: '43209742873'
+      GH_REPO: DrowningYu/Knowledge_Atlas
+    steps:
+      - name: Verify successful source build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/$GH_REPO/actions/runs/$SOURCE_RUN > /tmp/source-run.json
+          jq -e --arg sha "$SOURCE_SHA" '.head_sha == $sha and .conclusion == "success" and .event == "push"' /tmp/source-run.json
+      - uses: actions/checkout@v4
+        with:
+          ref: d5b07fc6f06fd27040d0cafd0bf33be4d693f927
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 43209742873
+          pattern: Knowledge-Atlas-*
+          path: downloaded
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-linux-amd64
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev patchelf
+      - run: npm ci
+      - name: Build Linux installer from the same source
+        run: npm run tauri -- build --bundles deb
+      - name: Collect and check installers
+        shell: python
+        run: |
+          import hashlib, pathlib, shutil
+          out = pathlib.Path('release-assets')
+          out.mkdir()
+          packages = {
+            'Windows-x64': ('downloaded/Knowledge-Atlas-Windows-x64/**/*.exe', 'exe', 15843826),
+            'macOS-Intel': ('downloaded/Knowledge-Atlas-macOS-Intel/**/*.dmg', 'dmg', 17070826),
+            'macOS-Apple-Silicon': ('downloaded/Knowledge-Atlas-macOS-Apple-Silicon/**/*.dmg', 'dmg', 16886595),
+            'Linux-amd64': ('target/release/bundle/deb/*.deb', 'deb', None),
+          }
+          for label, (pattern, ext, expected_size) in packages.items():
+            matches = list(pathlib.Path('.').glob(pattern))
+            assert len(matches) == 1, (label, matches)
+            data = matches[0].read_bytes()
+            assert len(data) > 1000000, label
+            assert expected_size is None or len(data) == expected_size, label
+            assert (ext == 'exe' and data[:2] == b'MZ') or (ext == 'dmg' and data[-512:-508] == b'koly') or (ext == 'deb' and data[:8] == b'!<arch>\n'), label
+            shutil.copyfile(matches[0], out / f'Knowledge-Atlas-0.1.0-{label}.{ext}')
+          sums = ''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in sorted(out.iterdir()))
+          (out / 'SHA256SUMS.txt').write_text(sums)
+      - name: Create draft, upload all assets, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/release-notes.md <<'NOTES'
+          Knowledge Atlas 首个 MVP 版本：本地知识图探索与编辑、撤销历史、PID 示例、五种导出，以及供外部 AI 使用的 MCP 接口。
+
+          ## 下载安装包
+          - Windows x64：`Knowledge-Atlas-0.1.0-Windows-x64.exe`
+          - Mac Intel：`Knowledge-Atlas-0.1.0-macOS-Intel.dmg`
+          - Mac Apple Silicon（M 系列）：`Knowledge-Atlas-0.1.0-macOS-Apple-Silicon.dmg`
+          - Linux amd64（Ubuntu 24.04）：`Knowledge-Atlas-0.1.0-Linux-amd64.deb`
+
+          安装后无需 Node.js 或 Rust。`SHA256SUMS.txt` 提供安装包校验值；下方 Source code 是源码，不是安装器。
+
+          Windows / Mac 安装包尚未代码签名，Mac 尚未公证，系统可能显示安全提示。三平台的核心与协议测试、打包，以及浏览器端到端测试已通过；Windows / Mac 的桌面交互仍需实机试用。
+
+          Windows / Mac 安装包复用已通过的构建，Linux 安装包从相同源码编译。源码：d5b07fc6f06fd27040d0cafd0bf33be4d693f927。
+          构建验证：https://github.com/DrowningYu/Knowledge_Atlas/actions/runs/43209742873
+          NOTES
+          if gh release view v0.1.0 --json isDraft > /tmp/existing-release.json 2>/dev/null; then
+            if ! jq -e '.isDraft == true' /tmp/existing-release.json; then
+              echo 'Release already published; refusing to overwrite its assets.'
+              exit 1
+            fi
+          else
+            gh release create v0.1.0 --target "$SOURCE_SHA" --draft --title 'Knowledge Atlas v0.1.0' --notes-file /tmp/release-notes.md
+          fi
+          gh release upload v0.1.0 release-assets/* --clobber
+          gh release view v0.1.0 --json assets | jq -e '.assets | length == 5'
+          gh release edit v0.1.0 --draft=false --latest --notes-file /tmp/release-notes.md
