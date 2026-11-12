@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
@@ -377,11 +377,22 @@ try {
     path: path.join(out, "03-progressive-lists-dark.png"),
     animations: "disabled",
   });
+  // Exercise the real connection response arriving after the settings dialog renders.
+  await page.route(base + "/api", async (route) => {
+    const request = route.request();
+    if (request.postDataJSON()?.method !== "connection_info") {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.fulfill({ response });
+  });
   await page.getByRole("button", { name: "MCP 设置", exact: true }).click();
   await page.getByRole("heading", { name: "MCP 连接设置" }).waitFor();
-  assert.match(
-    await page.locator(".connection-status").textContent(),
-    /运行中/,
+  await poll(
+    async () => /运行中/.test(await page.locator(".connection-status").textContent()),
+    "settings receives the real MCP connection status",
   );
   await page.screenshot({ path: path.join(out, "04-mcp-settings.png") });
   await page.getByRole("button", { name: "关闭设置", exact: true }).click();
@@ -428,6 +439,14 @@ try {
   console.log(
     "PASS: progressive exploration, branch replacement, autosave/reload, undo/redo, row status, inspector, MCP→SSE, five exports, theme, settings, node delete/undo, JSON import, new map.",
   );
+} catch (error) {
+  // Preserve actionable CI diagnostics without publishing the fixture credential.
+  const detail = String(error?.stack || error);
+  await writeFile(
+    path.join(out, "failure.txt"),
+    token ? detail.split(token).join("<redacted>") : detail,
+  );
+  throw error;
 } finally {
   await browser?.close();
   for (const child of children.reverse()) child.kill("SIGTERM");
