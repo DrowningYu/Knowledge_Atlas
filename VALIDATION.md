@@ -85,3 +85,29 @@ python3 tests/native-smoke.py http://127.0.0.1:4446 /absolute/path/knowledge-atl
 | Knowledge-Atlas-0.1.0-macOS-Apple-Silicon.dmg | 16,886,595 | `90095959ce8fbf9881b54e8eb05caa486e0c4ebbca53e232a2054d7b00ec1e33` |
 | Knowledge-Atlas-0.1.0-macOS-Intel.dmg | 17,070,826 | `1054fc11494aabe1f94d69ac7238f7fde77d43bbcc63dcb19d1ce12806a2dca2` |
 | Knowledge-Atlas-0.1.0-Windows-x64.exe | 15,843,826 | `3c127e4ff0bf5148ca48c5a41e56238178df846d85901f5036d4e94a156af49a` |
+
+## macOS 0.1.1 打包修复
+
+对已发布的 0.1.0 Apple Silicon DMG 做了负向验证：`codesign --verify --deep --strict` 返回 `code has no resources but signature indicates they must be present`。旧包只有链接器生成的二进制签名，`Info.plist=not bound`、`Sealed Resources=none`，未形成完整的应用包资源签名。
+
+0.1.1 配置 `bundle.macOS.signingIdentity: "-"`，签署整个应用包。首轮 Apple Silicon 最终 DMG 中的应用通过严格签名验证，具有正确的 bundle identifier、绑定的 Info.plist 和密封资源。`spctl` 仍拒绝未经 Developer ID 签名和公证的应用，这与代码完整性验证是两个不同结果；发布说明保留首次打开的系统授权步骤。
+
+DMG 新增可维护的 SVG 背景及打包用 PNG；设置应用与 Applications 的固定位置，并启用 `TAURI_BUNDLER_DMG_IGNORE_CI=true`，使云端打包也执行 Finder 布局。
+
+最终构建在 [0.1.1 Actions 运行](https://github.com/DrowningYu/Knowledge_Atlas/actions/runs/43222372467) 中，两种 Mac 均通过以下检查：
+
+- 挂载最终 DMG，验证镜像完整性、Applications 符号链接、背景图片内容和已保存的 Finder 图标位置。
+- 对镜像内的 `.app` 和复制到安装目录后的 `.app` 分别执行 `codesign --verify --deep --strict`。
+- 通过 Launch Services 启动实际应用，确认进程持续运行，并从真实本地后端读取 21 个 PID 示例节点。
+- 保存并人工检查安装窗口和实际应用窗口的截图，确认箭头、文字对比度和知识图界面显示正常。
+
+这里只验证 Mac 的安装布局、签名和原生启动，不代表完成了 macOS 上所有编辑操作的交互测试。ad-hoc 签名包仍未通过 Apple 的公证；浏览器下载后的 Gatekeeper 首次放行按发布说明操作。
+
+[0.1.1 Release](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.1) 的全部四份安装包与校验文件均已实际下载并验证；两份 DMG 的 SHA-256 与上述原生验证使用的镜像完全一致。
+
+| 安装包 | SHA-256 |
+| --- | --- |
+| Knowledge-Atlas-0.1.1-Linux-amd64.deb | `9ac04d4919122b2c5348377dd9dcc4bb1ba313a700366ad37e7c31e45aeea34a` |
+| Knowledge-Atlas-0.1.1-macOS-Apple-Silicon.dmg | `a476d50fb56e5655f65f9662b29a85a2a5ebd02b1e60200771dc2d1dc56e1ea3` |
+| Knowledge-Atlas-0.1.1-macOS-Intel.dmg | `58133d0faf09e8c845c43bea6fae2c924fc79087042154f133b7e51482d80007` |
+| Knowledge-Atlas-0.1.1-Windows-x64.exe | `c156a17100ff986e855b36a4763ca6c6762791de4d4223c3123be6aa8c6a8b01` |
