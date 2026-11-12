@@ -72,3 +72,16 @@ python3 tests/native-smoke.py http://127.0.0.1:4446 /absolute/path/knowledge-atl
 | Knowledge-Atlas-macOS-Apple-Silicon | Knowledge Atlas_0.1.0_aarch64.dmg | 16,886,595 |
 
 上述 Windows/macOS 结果是对应平台的编译、协议测试和打包成功，不表示已在用户电脑上完成安装与 GUI 交互验收；签名和公证仍未配置。Linux 原生端到端验证范围保持上文记录。
+
+## v0.1.0 Release 下载验证
+
+[发布流程](https://github.com/DrowningYu/Knowledge_Atlas/actions/runs/43217579119) 已成功完成，四种安装包与 SHA256SUMS.txt 已发布到 [v0.1.0](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.0)。Windows / Mac 复用上述已验证产物，Linux 在 Ubuntu 24.04 从相同源码 `d5b07fc` 重新打包。
+
+已实际下载全部五个附件，核对服务器文件大小、GitHub 资产摘要与 SHA256SUMS.txt；Windows / Mac 包与原构建产物的 SHA-256 一致。Linux DEB 的包目录可读取，版本为 0.1.0，架构为 amd64，依赖 libwebkit2gtk-4.1-0 与 libgtk-3-0。
+
+| 安装包 | 大小（字节） | SHA-256 |
+| --- | ---: | --- |
+| Knowledge-Atlas-0.1.0-Linux-amd64.deb | 18,249,158 | `e8ee2b162286e3d8d1d46c0c33b86584f9b1e2c6ff3b49839e0a60c6ce18d590` |
+| Knowledge-Atlas-0.1.0-macOS-Apple-Silicon.dmg | 16,886,595 | `90095959ce8fbf9881b54e8eb05caa486e0c4ebbca53e232a2054d7b00ec1e33` |
+| Knowledge-Atlas-0.1.0-macOS-Intel.dmg | 17,070,826 | `1054fc11494aabe1f94d69ac7238f7fde77d43bbcc63dcb19d1ce12806a2dca2` |
+| Knowledge-Atlas-0.1.0-Windows-x64.exe | 15,843,826 | `3c127e4ff0bf5148ca48c5a41e56238178df846d85901f5036d4e94a156af49a` |

@@ -2,6 +2,19 @@
 
 本地优先的知识探索桌面应用。把目标知识的前置概念逐层展开为横向列表，同级知识留在同一个面板中。编辑、历史记录和 AI 修改全部写入 SQLite。桌面运行不需要 Node.js、云数据库或联网账号。
 
+## 下载
+
+在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.0) 的 **Assets** 中下载对应系统的安装包：
+
+| 系统 | 文件 |
+| --- | --- |
+| Windows x64 | `Knowledge-Atlas-0.1.0-Windows-x64.exe` |
+| Mac Intel | `Knowledge-Atlas-0.1.0-macOS-Intel.dmg` |
+| Mac Apple Silicon（M 系列） | `Knowledge-Atlas-0.1.0-macOS-Apple-Silicon.dmg` |
+| Linux amd64（Ubuntu 24.04） | `Knowledge-Atlas-0.1.0-Linux-amd64.deb` |
+
+`SHA256SUMS.txt` 可用于校验下载完整性。Source code 是源码；普通用户选择上面的安装包即可。Windows / Mac 安装包尚未代码签名，Mac 尚未公证。
+
 ## 快速上手
 
 1. 启动应用，首次创建包含 21 个知识点、34 条关系的 PID 控制演示地图；也附有 `examples/pid-control.json`。
@@ -116,7 +129,7 @@ npm run tauri -- build --bundles deb
 | `Knowledge-Atlas-macOS-Intel` | Intel `.dmg` |
 | `Knowledge-Atlas-macOS-Apple-Silicon` | Apple Silicon `.dmg` |
 
-Artifact 保留 14 天；不是自动创建 GitHub Release。配置工作流不代表这些平台已构建或通过实机验收，请查看实际运行结果；本次本地验证范围记录在 [VALIDATION.md](VALIDATION.md)。
+Artifact 保留 14 天，日常构建不会自动发布版本。v0.1.0 安装包通过独立发布流程保存到 [Releases](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.0)，可以直接下载。构建通过不代表桌面实机验收；验证范围记录在 [VALIDATION.md](VALIDATION.md)。
 
 平台依赖与打包参考：[Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/)、[Windows 安装器](https://v2.tauri.app/distribute/windows-installer/)、[macOS DMG](https://v2.tauri.app/distribute/dmg/)。
 
