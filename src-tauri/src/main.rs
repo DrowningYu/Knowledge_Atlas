@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod tunnel;
 use atlas_core::Store;
 use atlas_server::{ServerHandle, ServerOptions};
 use serde_json::Value;
@@ -6,6 +7,27 @@ use std::{fs, sync::Arc};
 use tauri::{Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
+
+struct TunnelState(Arc<tunnel::Tunnel>);
+
+#[tauri::command]
+async fn tunnel_action(
+    state: tauri::State<'_, TunnelState>,
+    action: String,
+    settings: Option<tunnel::Settings>,
+    key: Option<String>,
+) -> Result<tunnel::Snapshot, String> {
+    let tunnel = state.0.clone();
+    tauri::async_runtime::spawn_blocking(move || match action.as_str() {
+        "status" => Ok(tunnel.snapshot()),
+        "connect" => tunnel.connect(settings.ok_or("缺少连接设置")?, key),
+        "disconnect" => Ok(tunnel.disconnect()),
+        "forget" => tunnel.forget(),
+        _ => Err("未知连接操作".into()),
+    })
+    .await
+    .map_err(|_| "连接操作失败".to_string())?
+}
 
 struct AtlasState {
     store: Store,
@@ -28,6 +50,38 @@ async fn api(
     .await
     .map_err(|e| e.to_string())?
 }
+#[tauri::command]
+fn open_setup_url(destination: String) -> Result<(), String> {
+    let url = match destination.as_str() {
+        "platform" => "https://platform.openai.com/settings/organization/tunnels",
+        "chatgpt" => "https://chatgpt.com/plugins",
+        "docs" => "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",
+        _ => return Err("不支持的设置页面".into()),
+    };
+    #[cfg(target_os = "macos")]
+    let mut cmd = {
+        let mut c = std::process::Command::new("open");
+        c.arg(url);
+        c
+    };
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        use std::os::windows::process::CommandExt;
+        let mut c = std::process::Command::new("rundll32.exe");
+        c.args(["url.dll,FileProtocolHandler", url]);
+        c.creation_flags(0x08000000);
+        c
+    };
+    #[cfg(target_os = "linux")]
+    let mut cmd = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(url);
+        c
+    };
+    cmd.spawn().map_err(|_| "无法打开浏览器".to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 async fn save_export(app: tauri::AppHandle, name: String, data: Vec<u8>) -> Result<bool, String> {
     if data.len() > 50 * 1024 * 1024 {
@@ -118,7 +172,7 @@ fn main() {
                 store.clone(),
                 ServerOptions {
                     port: 38473,
-                    token,
+                    token: token.clone(),
                     allowed_origins: vec![
                         "tauri://localhost".into(),
                         "http://tauri.localhost".into(),
@@ -130,7 +184,9 @@ fn main() {
             // No credential is included; the token remains in its existing private file.
             fs::write(
                 dir.join("mcp-endpoint.json"),
-                serde_json::to_vec(&serde_json::json!({"url": format!("http://127.0.0.1:{}/mcp", server.port)}))?,
+                serde_json::to_vec(
+                    &serde_json::json!({"url": format!("http://127.0.0.1:{}/mcp", server.port)}),
+                )?,
             )?;
             let server = Arc::new(server);
             let mut events = store.subscribe();
@@ -149,14 +205,71 @@ fn main() {
                     }
                 }
             });
+            let binary = std::env::current_exe()?.with_file_name(if cfg!(windows) {
+                "tunnel-client-runtime.exe"
+            } else {
+                "tunnel-client-runtime"
+            });
+            let tunnel = tunnel::Tunnel::new(dir, binary, server.port, token);
+            app.manage(TunnelState(tunnel));
+            use tauri::{
+                menu::{Menu, MenuItem},
+                tray::TrayIconBuilder,
+            };
+            let show = MenuItem::with_id(app, "show", "打开 Knowledge Atlas", true, None::<&str>)?;
+            let stop =
+                MenuItem::with_id(app, "disconnect", "断开 ChatGPT 连接", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "退出 Knowledge Atlas", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &stop, &quit])?;
+            let _tray = TrayIconBuilder::with_id("atlas")
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("Knowledge Atlas")
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                    "disconnect" => {
+                        let t = app.state::<TunnelState>().0.clone();
+                        std::thread::spawn(move || {
+                            t.disconnect();
+                        });
+                    }
+                    "quit" => {
+                        app.state::<TunnelState>().0.shutdown();
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .build(app)?;
             app.manage(AtlasState { store, server });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![api, save_export, copy_text])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.state::<TunnelState>().0.keep_in_tray() {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            api,
+            save_export,
+            copy_text,
+            tunnel_action,
+            open_setup_url
+        ])
         .build(tauri::generate_context!())
         .expect("Unable to start Knowledge Atlas")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(state) = app.try_state::<TunnelState>() {
+                    state.0.shutdown();
+                }
                 if let Some(state) = app.try_state::<AtlasState>() {
                     state.server.shutdown();
                 }

@@ -43,6 +43,9 @@ try:
     with (app / 'Contents/Info.plist').open('rb') as f:
         info = plistlib.load(f)
     assert info['CFBundleShortVersionString'] == json.loads(pathlib.Path('package.json').read_text())['version']
+    runtime = app / 'Contents/MacOS/tunnel-client-runtime'
+    assert runtime.is_file(), 'Bundled tunnel runtime missing'
+    assert '0.0.20' in run(str(runtime), '--version').stdout
     signature = run('codesign', '--verify', '--deep', '--strict', '--verbose=2', str(app)).stdout
     (out / 'macos-signature.txt').write_text(signature + run('codesign', '-d', '--verbose=4', str(app)).stdout)
     # Ad-hoc signing seals resources, but is NOT Apple Developer ID notarization.
