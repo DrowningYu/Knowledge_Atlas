@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
+  <rect width="660" height="400" fill="#252b33"/>
+  <text x="330" y="58" text-anchor="middle" fill="#f3f5f7" font-family="Arial,sans-serif" font-size="27" font-weight="600">Knowledge Atlas</text>
+  <text x="330" y="87" text-anchor="middle" fill="#b0bccb" font-family="Arial,sans-serif" font-size="14">A quiet space for connected knowledge</text>
+  <path d="M279 170 H377 M359 152 L377 170 L359 188" fill="none" stroke="#aac6f0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="330" y="286" text-anchor="middle" fill="#f3f5f7" font-family="Arial,sans-serif" font-size="18">Drag the app to Applications to install</text>
+  <text x="330" y="321" text-anchor="middle" fill="#b0bccb" font-family="Arial,sans-serif" font-size="13">Then open Knowledge Atlas from Applications</text>
+</svg>

@@ -4,16 +4,16 @@
 
 ## 下载
 
-在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.0) 的 **Assets** 中下载对应系统的安装包：
+在 [Releases 页面](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.1) 的 **Assets** 中下载对应系统的安装包：
 
 | 系统 | 文件 |
 | --- | --- |
-| Windows x64 | `Knowledge-Atlas-0.1.0-Windows-x64.exe` |
-| Mac Intel | `Knowledge-Atlas-0.1.0-macOS-Intel.dmg` |
-| Mac Apple Silicon（M 系列） | `Knowledge-Atlas-0.1.0-macOS-Apple-Silicon.dmg` |
-| Linux amd64（Ubuntu 24.04） | `Knowledge-Atlas-0.1.0-Linux-amd64.deb` |
+| Windows x64 | `Knowledge-Atlas-0.1.1-Windows-x64.exe` |
+| Mac Intel | `Knowledge-Atlas-0.1.1-macOS-Intel.dmg` |
+| Mac Apple Silicon（M 系列） | `Knowledge-Atlas-0.1.1-macOS-Apple-Silicon.dmg` |
+| Linux amd64（Ubuntu 24.04） | `Knowledge-Atlas-0.1.1-Linux-amd64.deb` |
 
-`SHA256SUMS.txt` 可用于校验下载完整性。Source code 是源码；普通用户选择上面的安装包即可。Windows / Mac 安装包尚未代码签名，Mac 尚未公证。
+`SHA256SUMS.txt` 可用于校验下载完整性。Source code 是源码；普通用户选择上面的安装包即可。Windows 安装包尚未代码签名；Mac 使用 ad-hoc 签名，尚未完成 Developer ID 签名和公证。Mac 首次打开请参阅 [安装说明](docs/releases/v0.1.1.md#mac-首次打开)。
 
 ## 快速上手
 
@@ -103,7 +103,7 @@ npm run tauri -- build --target x86_64-apple-darwin --bundles dmg
 
 产物：`target/x86_64-apple-darwin/release/bundle/dmg/*.dmg`。Apple Silicon 上请避免通过 Rosetta 终端误选 Intel 架构。这里分别生成两种架构的安装包，不是 Universal 包。开发时运行 `npm run tauri:dev`；桌面使用系统 WKWebView。
 
-DMG 构建须在 macOS 上运行。当前未配置 Developer ID 签名与公证；面向其他用户正式分发前，按 [Tauri macOS 签名文档](https://v2.tauri.app/distribute/sign/macos/) 配置自己的证书与公证凭据，凭据通过 CI Secrets 提供，不要提交到仓库。
+DMG 构建须在 macOS 上运行。配置中的 `signingIdentity: "-"` 使用 ad-hoc 签名，并不提供 Apple 身份认证。CI 使用 `TAURI_BUNDLER_DMG_IGNORE_CI=true` 保留 Finder 安装布局。当前未配置 Developer ID 签名与公证；面向其他用户正式分发前，按 [Tauri macOS 签名文档](https://v2.tauri.app/distribute/sign/macos/) 配置自己的证书与公证凭据，凭据通过 CI Secrets 提供，不要提交到仓库。
 
 ### Linux：已验证的构建平台
 
@@ -121,15 +121,16 @@ npm run tauri -- build --bundles deb
 
 仓库的 [Actions](https://github.com/DrowningYu/Knowledge_Atlas/actions) 中选择 **Verify and build desktop installers**。推送 `main` / `master` 或 `v*` 标签会触发，也可以点击 **Run workflow** 手动运行。
 
-工作流先执行核心、MCP 协议和浏览器测试，再分别在 Windows、Intel Mac、Apple Silicon Mac 上编译。成功后，在该次运行页面的 **Artifacts** 下载：
+工作流先执行核心、MCP 协议和浏览器测试，再分别在 Windows、Intel Mac、Apple Silicon Mac 和 Linux 上编译。Mac 还会挂载最终 DMG，检查背景和图标位置、验证应用签名，再复制出应用测试原生启动。成功后，在该次运行页面的 **Artifacts** 下载：
 
 | Artifact | 安装包 |
 | --- | --- |
 | `Knowledge-Atlas-Windows-x64` | NSIS `.exe` |
 | `Knowledge-Atlas-macOS-Intel` | Intel `.dmg` |
 | `Knowledge-Atlas-macOS-Apple-Silicon` | Apple Silicon `.dmg` |
+| `Knowledge-Atlas-Linux-amd64` | Linux `.deb` |
 
-Artifact 保留 14 天，日常构建不会自动发布版本。v0.1.0 安装包通过独立发布流程保存到 [Releases](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.0)，可以直接下载。构建通过不代表桌面实机验收；验证范围记录在 [VALIDATION.md](VALIDATION.md)。
+Artifact 保留 14 天，日常构建不会自动发布版本。v0.1.1 安装包在全部测试和打包通过后保存到 [Releases](https://github.com/DrowningYu/Knowledge_Atlas/releases/tag/v0.1.1)，可以直接下载。构建通过不代表桌面实机验收；验证范围记录在 [VALIDATION.md](VALIDATION.md)。
 
 平台依赖与打包参考：[Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/)、[Windows 安装器](https://v2.tauri.app/distribute/windows-installer/)、[macOS DMG](https://v2.tauri.app/distribute/dmg/)。
 

@@ -38,6 +38,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            bundle: deb
+            label: Linux-amd64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             bundle: nsis
@@ -51,6 +55,8 @@ jobs:
             bundle: dmg
             label: macOS-Apple-Silicon
     runs-on: ${{ matrix.os }}
+    env:
+      TAURI_BUNDLER_DMG_IGNORE_CI: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,12 +77,31 @@ jobs:
           set -o pipefail
           mkdir -p artifacts/ci
           cargo test --locked -p atlas-core -p atlas-server 2>&1 | tee artifacts/ci/core-tests.log
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev patchelf
+      - name: Inspect previous Mac package signature
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 "https://github.com/DrowningYu/Knowledge_Atlas/releases/download/v0.1.0/Knowledge-Atlas-0.1.0-${{ matrix.label }}.dmg" -o "$RUNNER_TEMP/previous.dmg"
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/previous-mount" "$RUNNER_TEMP/previous.dmg"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/previous-mount/Knowledge Atlas.app" > artifacts/ci/previous-macos-signature.txt 2>&1 || true
+          codesign -d --verbose=4 "$RUNNER_TEMP/previous-mount/Knowledge Atlas.app" >> artifacts/ci/previous-macos-signature.txt 2>&1 || true
+          hdiutil detach "$RUNNER_TEMP/previous-mount"
+          osascript -e 'tell application "Finder" to activate'
       - name: Build desktop installer
         shell: bash
         run: |
           set -o pipefail
           mkdir -p artifacts/ci
           npm run tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundle }} 2>&1 | tee artifacts/ci/desktop-build.log
+      - name: Verify final Mac installer and native startup
+        if: runner.os == 'macOS'
+        shell: bash
+        run: python3 tests/macos-package.py target/${{ matrix.target }}/release/bundle/dmg/*.dmg
       - name: Preserve platform diagnostics
         uses: actions/upload-artifact@v4
         if: always()
@@ -91,5 +116,46 @@ jobs:
           path: |
             target/${{ matrix.target }}/release/bundle/nsis/*.exe
             target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            target/${{ matrix.target }}/release/bundle/deb/*.deb
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    needs: [test, desktop]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Knowledge-Atlas-*
+          path: downloaded
+      - name: Prepare versioned release assets
+        shell: python
+        run: |
+          import hashlib, json, pathlib, shutil
+          version = json.loads(pathlib.Path('package.json').read_text())['version']
+          out = pathlib.Path('release-assets')
+          out.mkdir()
+          for label, ext in [('Windows-x64','exe'), ('macOS-Intel','dmg'), ('macOS-Apple-Silicon','dmg'), ('Linux-amd64','deb')]:
+              files = list(pathlib.Path('downloaded', 'Knowledge-Atlas-' + label).rglob('*.' + ext))
+              assert len(files) == 1, (label, files)
+              shutil.copyfile(files[0], out / f'Knowledge-Atlas-{version}-{label}.{ext}')
+          (out / 'SHA256SUMS.txt').write_text(''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in sorted(out.iterdir())))
+      - name: Publish verified installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p 'require("./package.json").version')
+          TAG="v$VERSION"
+          test -f "docs/releases/$TAG.md"
+          if gh release view "$TAG" --json isDraft > /tmp/release-state.json 2>/dev/null; then
+            jq -e '.isDraft == true' /tmp/release-state.json
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --draft --title "Knowledge Atlas $TAG" --notes-file "docs/releases/$TAG.md"
+          fi
+          gh release upload "$TAG" release-assets/* --clobber
+          gh release view "$TAG" --json assets | jq -e '.assets | length == 5'
+          gh release edit "$TAG" --draft=false --latest --notes-file "docs/releases/$TAG.md"
