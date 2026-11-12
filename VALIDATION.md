@@ -14,8 +14,8 @@
 | 外部 MCP → SQLite → Tauri 事件 → 原生界面 | 通过；检查详情更新且 3 个已展开面板继续可见 |
 | 原生重启、撤销/重做恢复 | 通过 |
 | 原生剪贴板和保存文件对话框 | 通过，实际写出文件并校验内容 |
-| Windows x64 NSIS | 已配置 GitHub Actions，当前环境未执行 |
-| macOS Intel / Apple Silicon DMG | 已配置 GitHub Actions，当前环境未执行 |
+| Windows x64 NSIS | GitHub Actions 的 Windows runner 构建成功，安装包已上传 |
+| macOS Intel / Apple Silicon DMG | GitHub Actions 的两种 macOS runner 均构建成功，安装包已上传 |
 
 核心测试覆盖：无效 ID/状态/引用、自引用、前置环、原子回滚、并发版本冲突、删除根节点的原子替换、删除不存在的节点/关系、撤销/重做单调版本、重启持久化、删除地图恢复、稳定 ID 文本导出、学习推荐。
 
@@ -53,3 +53,22 @@ python3 tests/native-smoke.py http://127.0.0.1:4446 /absolute/path/knowledge-atl
 测试脚本在 `tests/` 和 `crates/atlas-server/tests/`；自动化截图和结果写入 `artifacts/`。发布源码附带 `docs/screenshots/` 的界面预览，不包含临时令牌或用户数据库。
 
 原生测试方法参考 [Tauri WebDriver 手动配置](https://tauri.app/develop/tests/webdriver/manual-setup/)。
+
+## GitHub Actions 回归修复
+
+首次云端运行暴露出两处测试时序问题，均保留原有功能和安全断言后修复：
+
+- 界面测试打开 MCP 设置后，原先立即断言异步连接状态。现在等待真实接口响应，并人为延迟该响应 500 ms 作为回归场景；不伪造响应数据。
+- Windows 下，超大请求在上传期间被提前拒绝，客户端可能报告 socket abort 而读不到 413。协议测试改用真实 TCP / HTTP `Expect: 100-continue` 握手，在上传前验证 `/api` 和 `/mcp` 均明确返回 413。服务端的 2 MiB 限制保持原样。
+
+修复后的 Linux 浏览器端到端测试和 Windows 核心／官方 SDK 协议测试均已在 [Actions 运行](https://github.com/DrowningYu/Knowledge_Atlas/actions/runs/43209742873) 中通过。各平台的编译与测试日志保存在 `diagnostics-*` artifacts，便于定位后续失败。
+
+同一轮构建（源码提交 `d5b07fc`）已产出并上传以下安装包；已下载检查 artifact ZIP 完整性和安装包格式：
+
+| Artifact | 文件 | 大小（字节） |
+| --- | --- | ---: |
+| Knowledge-Atlas-Windows-x64 | Knowledge Atlas_0.1.0_x64-setup.exe | 15,843,826 |
+| Knowledge-Atlas-macOS-Intel | Knowledge Atlas_0.1.0_x64.dmg | 17,070,826 |
+| Knowledge-Atlas-macOS-Apple-Silicon | Knowledge Atlas_0.1.0_aarch64.dmg | 16,886,595 |
+
+上述 Windows/macOS 结果是对应平台的编译、协议测试和打包成功，不表示已在用户电脑上完成安装与 GUI 交互验收；签名和公证仍未配置。Linux 原生端到端验证范围保持上文记录。
