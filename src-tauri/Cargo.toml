@@ -1,0 +1,20 @@
+[package]
+name = "knowledge-atlas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "knowledge-atlas"
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+atlas-core = { path = "../crates/atlas-core" }
+atlas-server = { path = "../crates/atlas-server" }
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-single-instance = "2"
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "rt-multi-thread"] }
+uuid = { version = "1", features = ["v4"] }
+[features]
+custom-protocol = ["tauri/custom-protocol"]

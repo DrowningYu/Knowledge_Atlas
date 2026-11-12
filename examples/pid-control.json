@@ -1,0 +1,438 @@
+{
+  "id": "pid-control",
+  "title": "Understanding PID Control",
+  "root_id": "pid",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "pid",
+      "title": "PID control",
+      "summary": "Combine proportional, integral, and derivative feedback.",
+      "explanation": "## The controller\n\nFor tracking error **e(t) = r(t) − y(t)**:\n\n`u(t) = Kp e(t) + Ki ∫e(t)dt + Kd de(t)/dt`\n\nStart with a plant model, check stability, tune gradually, and validate against disturbances and actuator limits.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "feedback",
+      "title": "Negative feedback",
+      "summary": "Measure output and correct its error.",
+      "explanation": "## Closed loop\n\nA sensor measures output `y`; compare it to the setpoint `r`. Negative feedback pushes the error toward zero. Check the sign: reversing it can make the loop unstable.",
+      "status": "learning",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "error",
+      "title": "Tracking error",
+      "summary": "The difference between desired and measured output.",
+      "explanation": "`e = r − y`. Keep units consistent. A temperature error is in degrees; a motor speed error is in revolutions per minute. Noise and measurement delay affect this signal.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "plant",
+      "title": "Plant model",
+      "summary": "Describe the process being controlled.",
+      "explanation": "A plant turns actuator input into measured output. For a thermal system a useful first approximation is `τ dy/dt + y = K u`. Identify gain, time constant, and delay from a safe step experiment.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "proportional",
+      "title": "Proportional action",
+      "summary": "React to current error.",
+      "explanation": "`uP = Kp e`. Larger gain often speeds the response but may increase overshoot. Proportional control alone can leave steady state error when a constant disturbance is present.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "integral",
+      "title": "Integral action",
+      "summary": "Accumulate persistent error.",
+      "explanation": "`uI = Ki ∫ e dt`. Integration can remove steady state offset. Its stored state must be handled carefully during saturation or manual control.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "derivative",
+      "title": "Derivative action",
+      "summary": "Respond to the rate of change.",
+      "explanation": "`uD = Kd de/dt`. Derivative action adds damping but amplifies high frequency noise. Often differentiate the measurement rather than the setpoint to avoid derivative kick.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "calculus",
+      "title": "Derivatives and integrals",
+      "summary": "Understand rates and accumulated quantities.",
+      "explanation": "The derivative is instantaneous rate of change. The integral accumulates area over time. A constant error makes an integral grow linearly; an abrupt step has a very large ideal derivative.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "algebra",
+      "title": "Algebra and units",
+      "summary": "Manipulate equations and check dimensions.",
+      "explanation": "Solve linear equations, understand ratios, and label units. A control gain must convert the units of its input into the units of actuator output. Dimensional checks catch many implementation errors.",
+      "status": "mastered",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "dynamics",
+      "title": "First order dynamics",
+      "summary": "Understand inertia and time constants.",
+      "explanation": "For a first order step response, after one time constant the output covers about 63% of its final change. Delay adds phase lag and limits how aggressively a loop can be controlled.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "laplace",
+      "title": "Laplace transform",
+      "summary": "Represent linear differential equations algebraically.",
+      "explanation": "With zero initial conditions, differentiation becomes multiplication by `s`. The plant `τ dy/dt + y = K u` becomes `G(s) = K/(τs+1)`. Track assumptions when moving between domains.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "transfer",
+      "title": "Transfer functions",
+      "summary": "Relate linear system input and output.",
+      "explanation": "`G(s) = Y(s)/U(s)`. A feedback system has closed loop transfer `G C / (1 + G C)` for unity negative feedback. Poles determine natural response and stability.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "stability",
+      "title": "Closed loop stability",
+      "summary": "Keep the response bounded and convergent.",
+      "explanation": "A continuous linear closed loop is asymptotically stable when all poles lie in the open left half plane. Delays, excessive gain, and sampling can destabilize a seemingly simple loop.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "step",
+      "title": "Step response metrics",
+      "summary": "Measure rise time, overshoot, and settling.",
+      "explanation": "Apply a small safe change in setpoint. Record rise time, peak overshoot, settling time, and final offset. Compare both tracking and disturbance rejection; one metric alone is insufficient.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "tuning",
+      "title": "Practical PID tuning",
+      "summary": "Tune using measured evidence.",
+      "explanation": "1. Verify sensor and actuator direction.\n2. Start with integral and derivative disabled.\n3. Increase proportional action carefully.\n4. Add integral to remove offset.\n5. Add filtered derivative if damping is needed.\n6. Test disturbances, limits, and multiple operating points.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "sampling",
+      "title": "Discrete time sampling",
+      "summary": "Choose and maintain a controller update period.",
+      "explanation": "Use a fixed `dt` much smaller than important plant time scales. In a simple implementation `I += Ki * e * dt` and `D = Kd * (e - e_prev) / dt`. Watch jitter and delays.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "noise",
+      "title": "Measurement noise",
+      "summary": "Distinguish useful dynamics from sensor variation.",
+      "explanation": "Sensor readings contain noise, quantization, and sometimes bias. Filtering reduces noise but introduces delay. Validate using logged measurements rather than assuming every fluctuation is real.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "filter",
+      "title": "Derivative filtering",
+      "summary": "Limit high frequency amplification.",
+      "explanation": "Use a low pass filtered derivative, for example a first order filter on the measured rate. Select the filter time constant relative to sampling and plant bandwidth. Excessive filtering reduces useful damping.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "saturation",
+      "title": "Actuator saturation",
+      "summary": "Respect physical output limits.",
+      "explanation": "A heater cannot supply negative heat and a motor drive has voltage and current limits. Clamp the final actuator command to its permitted range. The controller model should account for these limits.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "anti-windup",
+      "title": "Integral anti-windup",
+      "summary": "Prevent accumulation while output is constrained.",
+      "explanation": "When output saturates, the integral can continue growing and cause slow recovery. Conditional integration or back calculation can keep the internal integral consistent with actual actuator output.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    },
+    {
+      "id": "validation",
+      "title": "Simulation and validation",
+      "summary": "Test robustness before deployment.",
+      "explanation": "Simulate setpoint changes, disturbances, sensor noise, delays, and saturation. Then test on the real plant within safe bounds. Log setpoint, output, error, actuator command, and integral state.",
+      "status": "not_understood",
+      "notes": "",
+      "collapsed": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "dep-0",
+      "source": "pid",
+      "target": "proportional",
+      "kind": "required",
+      "reason": "Understand proportional before studying pid."
+    },
+    {
+      "id": "dep-1",
+      "source": "pid",
+      "target": "integral",
+      "kind": "required",
+      "reason": "Understand integral before studying pid."
+    },
+    {
+      "id": "dep-2",
+      "source": "pid",
+      "target": "derivative",
+      "kind": "required",
+      "reason": "Understand derivative before studying pid."
+    },
+    {
+      "id": "dep-3",
+      "source": "pid",
+      "target": "tuning",
+      "kind": "required",
+      "reason": "Understand tuning before studying pid."
+    },
+    {
+      "id": "dep-4",
+      "source": "pid",
+      "target": "validation",
+      "kind": "required",
+      "reason": "Understand validation before studying pid."
+    },
+    {
+      "id": "dep-5",
+      "source": "feedback",
+      "target": "error",
+      "kind": "required",
+      "reason": "Understand error before studying feedback."
+    },
+    {
+      "id": "dep-6",
+      "source": "feedback",
+      "target": "plant",
+      "kind": "required",
+      "reason": "Understand plant before studying feedback."
+    },
+    {
+      "id": "dep-7",
+      "source": "error",
+      "target": "algebra",
+      "kind": "required",
+      "reason": "Understand algebra before studying error."
+    },
+    {
+      "id": "dep-8",
+      "source": "plant",
+      "target": "dynamics",
+      "kind": "required",
+      "reason": "Understand dynamics before studying plant."
+    },
+    {
+      "id": "dep-9",
+      "source": "proportional",
+      "target": "feedback",
+      "kind": "required",
+      "reason": "Understand feedback before studying proportional."
+    },
+    {
+      "id": "dep-10",
+      "source": "integral",
+      "target": "feedback",
+      "kind": "required",
+      "reason": "Understand feedback before studying integral."
+    },
+    {
+      "id": "dep-11",
+      "source": "integral",
+      "target": "calculus",
+      "kind": "required",
+      "reason": "Understand calculus before studying integral."
+    },
+    {
+      "id": "dep-12",
+      "source": "derivative",
+      "target": "feedback",
+      "kind": "required",
+      "reason": "Understand feedback before studying derivative."
+    },
+    {
+      "id": "dep-13",
+      "source": "derivative",
+      "target": "calculus",
+      "kind": "required",
+      "reason": "Understand calculus before studying derivative."
+    },
+    {
+      "id": "dep-14",
+      "source": "derivative",
+      "target": "filter",
+      "kind": "required",
+      "reason": "Understand filter before studying derivative."
+    },
+    {
+      "id": "dep-15",
+      "source": "calculus",
+      "target": "algebra",
+      "kind": "required",
+      "reason": "Understand algebra before studying calculus."
+    },
+    {
+      "id": "dep-16",
+      "source": "dynamics",
+      "target": "calculus",
+      "kind": "required",
+      "reason": "Understand calculus before studying dynamics."
+    },
+    {
+      "id": "dep-17",
+      "source": "laplace",
+      "target": "calculus",
+      "kind": "required",
+      "reason": "Understand calculus before studying laplace."
+    },
+    {
+      "id": "dep-18",
+      "source": "transfer",
+      "target": "laplace",
+      "kind": "required",
+      "reason": "Understand laplace before studying transfer."
+    },
+    {
+      "id": "dep-19",
+      "source": "transfer",
+      "target": "plant",
+      "kind": "required",
+      "reason": "Understand plant before studying transfer."
+    },
+    {
+      "id": "dep-20",
+      "source": "stability",
+      "target": "transfer",
+      "kind": "required",
+      "reason": "Understand transfer before studying stability."
+    },
+    {
+      "id": "dep-21",
+      "source": "step",
+      "target": "dynamics",
+      "kind": "required",
+      "reason": "Understand dynamics before studying step."
+    },
+    {
+      "id": "dep-22",
+      "source": "tuning",
+      "target": "stability",
+      "kind": "required",
+      "reason": "Understand stability before studying tuning."
+    },
+    {
+      "id": "dep-23",
+      "source": "tuning",
+      "target": "step",
+      "kind": "required",
+      "reason": "Understand step before studying tuning."
+    },
+    {
+      "id": "dep-24",
+      "source": "tuning",
+      "target": "anti-windup",
+      "kind": "required",
+      "reason": "Understand anti windup before studying tuning."
+    },
+    {
+      "id": "dep-25",
+      "source": "sampling",
+      "target": "calculus",
+      "kind": "required",
+      "reason": "Understand calculus before studying sampling."
+    },
+    {
+      "id": "dep-26",
+      "source": "filter",
+      "target": "noise",
+      "kind": "required",
+      "reason": "Understand noise before studying filter."
+    },
+    {
+      "id": "dep-27",
+      "source": "filter",
+      "target": "sampling",
+      "kind": "required",
+      "reason": "Understand sampling before studying filter."
+    },
+    {
+      "id": "dep-28",
+      "source": "anti-windup",
+      "target": "integral",
+      "kind": "required",
+      "reason": "Understand integral before studying anti windup."
+    },
+    {
+      "id": "dep-29",
+      "source": "anti-windup",
+      "target": "saturation",
+      "kind": "required",
+      "reason": "Understand saturation before studying anti windup."
+    },
+    {
+      "id": "dep-30",
+      "source": "validation",
+      "target": "sampling",
+      "kind": "required",
+      "reason": "Understand sampling before studying validation."
+    },
+    {
+      "id": "dep-31",
+      "source": "validation",
+      "target": "step",
+      "kind": "required",
+      "reason": "Understand step before studying validation."
+    },
+    {
+      "id": "rec-tuning-noise",
+      "source": "tuning",
+      "target": "noise",
+      "kind": "recommended",
+      "reason": "Noisy measurements can mislead tuning decisions."
+    },
+    {
+      "id": "related-pi",
+      "source": "proportional",
+      "target": "integral",
+      "kind": "related",
+      "reason": "P and I are commonly combined as a PI controller."
+    }
+  ],
+  "updated_at": "2026-11-12T10:15:01.265217034+00:00"
+}

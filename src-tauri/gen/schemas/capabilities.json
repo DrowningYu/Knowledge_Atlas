@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Local main window access only","local":true,"windows":["main"],"permissions":["core:default"]}}
