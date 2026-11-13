@@ -1,3 +1,5 @@
+> **0.2.0 云同步**：注册登录后，App 和插件按账号读写云端地图，个人电脑无需保持在线。浏览器入口：https://littlefish.sarl/atlas/ ，[账号与部署说明](cloud/README.md)。旧本地模式独立保留，可在设置中主动导入，不自动上传。以下本地 MCP / tunnel 说明仅适用于本地模式；云端请使用 OAuth 入口 `https://littlefish.sarl/atlas/mcp`。
+
 ## ChatGPT 后台连接（0.1.3）
 
 打开右上角设置，在「ChatGPT 普通聊天」中按引导创建隧道并填写运行密钥，点击「保存并连接」。应用内置 OpenAI tunnel-client-runtime，无需另外装 Node 或保持终端窗口。

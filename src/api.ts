@@ -1,3 +1,4 @@
+import {account, cloudRequest} from "./cloud";
 export type Status = "not_understood" | "learning" | "mastered" | "skipped";
 export type Concept = {
   id: string;
@@ -49,6 +50,7 @@ export async function api<T>(
   method: string,
   params: Record<string, unknown> = {},
 ): Promise<T> {
+  if (account()) return cloudRequest<T>("/api", {method, params});
   if (desktop) {
     const { invoke } = await import("@tauri-apps/api/core");
     return invoke<T>("api", { method, params });
@@ -68,6 +70,24 @@ export async function api<T>(
 export async function subscribe(
   cb: (change: { map_id: string; version: number; kind?: string }) => void,
 ) {
+  if (account()) {
+    let stopped = false;
+    let previous = "";
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const list = await api<MapSummary[]>("list_maps");
+        const current = JSON.stringify(list.map(m=>[m.id,m.version]));
+        if (!stopped && current !== previous) { previous=current; cb({map_id:"",version:0,kind:"resync"}); }
+        if (!stopped) window.dispatchEvent(new CustomEvent('atlas-sync-status',{detail:'云端已连接'}));
+      } catch {
+        if (!stopped) window.dispatchEvent(new CustomEvent('atlas-sync-status',{detail:'连接中断，正在重试'}));
+      }
+      if (!stopped) timer=setTimeout(poll,5000);
+    };
+    void poll();
+    return () => {stopped=true;clearTimeout(timer);};
+  }
   if (desktop) {
     const { listen } = await import("@tauri-apps/api/event");
     return listen<{ map_id: string; version: number; kind?: string }>(
