@@ -12,16 +12,18 @@ async fn main() -> Result<()> {
     let mut token_file = PathBuf::from("atlas.token");
     let mut port = 38473;
     let mut origins = vec![];
+    let mut seed = true;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--no-demo" => seed = false,
             "--db" => db = args.next().context("--db needs path")?.into(),
             "--port" => port = args.next().context("--port needs number")?.parse()?,
             "--token-file" => token_file = args.next().context("--token-file needs path")?.into(),
             "--allow-origin" => origins.push(args.next().context("--allow-origin needs origin")?),
             "--help" | "-h" => {
                 println!(
-                    "atlas-server --db PATH --port PORT --token-file PATH --allow-origin ORIGIN"
+                    "atlas-server --db PATH --port PORT --token-file PATH --allow-origin ORIGIN [--no-demo]"
                 );
                 return Ok(());
             }
@@ -34,7 +36,7 @@ async fn main() -> Result<()> {
     let token = load_token(&token_file)?;
     let first_run = !db.exists();
     let store = Store::open(&db)?;
-    if first_run {
+    if first_run && seed {
         store.seed_demo()?;
     }
     let server = start(

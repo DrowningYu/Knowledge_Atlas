@@ -1,0 +1,36 @@
+[Unit]
+Description=Knowledge Atlas cloud accounts and MCP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=knowledge-atlas-cloud
+StateDirectoryMode=0700
+WorkingDirectory=/opt/knowledge-atlas-cloud
+Environment=ATLAS_CLOUD_DATA=/var/lib/knowledge-atlas-cloud
+Environment=ATLAS_SERVER_BIN=/opt/knowledge-atlas-cloud/atlas-server
+Environment=ATLAS_PUBLIC_URL=https://littlefish.sarl/atlas
+ExecStart=/opt/knowledge-atlas-cloud/venv/bin/python /opt/knowledge-atlas-cloud/cloud/server.py
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+MemoryMax=1500M
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

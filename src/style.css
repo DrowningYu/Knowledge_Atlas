@@ -1280,3 +1280,9 @@ h1 {
 .local-mcp-settings summary { cursor:pointer; font-size:14px; }
 
 .modal:has(.tunnel-settings) { width:600px; max-width:90vw; max-height:88vh; overflow-y:auto; }
+
+.account-page {display:grid;place-items:center;min-height:100vh;background:var(--bg, #f5f3ed);padding:28px}
+.account-card {width:min(440px,100%);padding:36px;border:1px solid #d5dbd4;border-radius:20px;background:var(--panel, #fff);box-shadow:0 12px 50px #1232}
+.account-card .field-label {display:block;margin:18px 0}.account-card .text-input {display:block;width:100%;margin-top:8px}
+.account-card h1 {font-size:26px;margin:16px 0}.account-card .button {margin-top:10px}.account-error {color:#b04035}
+.cloud-account {padding-bottom:20px;margin-bottom:18px;border-bottom:1px solid #d5dbd4}.cloud-account .button {margin:6px 8px 6px 0}.cloud-account p {line-height:1.65}

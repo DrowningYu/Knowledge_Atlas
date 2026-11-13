@@ -1,3 +1,5 @@
+import {AccountGate, CloudAccount} from "./CloudAccount";
+import {account} from "./cloud";
 import { TunnelSettings } from "./TunnelSettings";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
@@ -274,6 +276,12 @@ function ListPanel({ data }: NodeProps<Node<PanelData>>) {
 }
 const nodeTypes = { list: ListPanel };
 function App() {
+  const [syncStatus, setSyncStatus] = useState('正在连接云端');
+  useEffect(() => {
+    const update = (e: Event) => setSyncStatus((e as CustomEvent<string>).detail);
+    window.addEventListener('atlas-sync-status',update);
+    return () => window.removeEventListener('atlas-sync-status',update);
+  }, []);
   const [maps, setMaps] = useState<MapSummary[]>([]),
     [graph, setGraph] = useState<Graph | null>(null),
     [selected, setSelected] = useState(""),
@@ -406,12 +414,20 @@ function App() {
       })
       .catch(fail);
     let stop: (() => void) | undefined;
+    let disposed = false;
     subscribe(async (change) => {
       try {
         const list = await api<MapSummary[]>("list_maps");
         setMaps(list);
         const g = graphRef.current;
-        if (!g) return;
+        if (!g) {
+          if (list.length) {
+            const first = await api<Graph>("get_map", {map_id:list[0].id});
+            graphRef.current=first;setGraph(first);setSelected(first.root_id);
+            setDraft(first.nodes.find(n=>n.id===first.root_id)||null);
+          }
+          return;
+        }
         if (!list.some((m) => m.id === g.id)) {
           graphRef.current = null;
           setGraph(null);
@@ -422,6 +438,7 @@ function App() {
           return;
         }
         if (g.id !== change.map_id && change.kind !== "resync") return;
+        if (change.kind === "resync" && list.find(m=>m.id===g.id)?.version === g.version) return;
         if (change.version <= g.version && change.kind !== "resync") return;
         if (savingRef.current) return;
         if (dirtyRef.current) {
@@ -456,8 +473,8 @@ function App() {
       } catch (e) {
         fail(e);
       }
-    }).then((s) => (stop = s));
-    return () => stop?.();
+    }).then((s) => { if (disposed) s(); else stop = s; });
+    return () => { disposed = true; stop?.(); };
   }, [refreshMaps]);
   useEffect(() => {
     if (!dirty || conflict) return;
@@ -912,8 +929,8 @@ function App() {
               : dirty
                 ? "有未保存更改"
                 : graph
-                  ? "本地已保存"
-                  : "连接本地数据库"}
+                  ? (account() ? "云端已保存" : "本地已保存")
+                  : (account() ? "云端账号已连接" : "连接本地数据库")}
           </span>
           <IconButton
             title={dark ? "浅色主题" : "深色主题"}
@@ -989,8 +1006,8 @@ function App() {
             <BookOpen size={18} />
           </div>
           <div>
-            <strong>你的知识，留在本地</strong>
-            <small>SQLite · 自动保存</small>
+            <strong>{account() ? account()!.username + " 的云端地图" : "你的知识，留在本地"}</strong>
+            <small>{account() ? syncStatus : "SQLite · 自动保存"}</small>
           </div>
           <span className="tiny-dot" />
         </div>
@@ -1566,14 +1583,16 @@ function App() {
           <div className="modal">
             <div className="modal-heading">
               <div>
-                <span className="eyebrow">LOCAL FIRST</span>
+                <span className="eyebrow">{account() ? "CLOUD ACCOUNT" : "LOCAL FIRST"}</span>
                 <h2>AI 连接设置</h2>
               </div>
               <IconButton title="关闭设置" onClick={() => setSettings(false)}>
                 <X size={18} />
               </IconButton>
             </div>
-            <TunnelSettings />
+            <CloudAccount />
+            {!account() && <TunnelSettings />}
+            {!account() && <>
             <details className="local-mcp-settings">
             <summary>本地 MCP 客户端配置</summary>
             <p className="muted">
@@ -1658,7 +1677,7 @@ function App() {
                 </button>
               </>
             )}
-            </details>
+            </details></>}
           </div>
         </div>
       )}
@@ -1831,7 +1850,7 @@ function App() {
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ReactFlowProvider>
-      <App />
+      <AccountGate><App /></AccountGate>
     </ReactFlowProvider>
   </React.StrictMode>,
 );
