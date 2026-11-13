@@ -7,10 +7,12 @@ import zipfile
 
 root = pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as temp:
-    for app_id in [None, 'plugin_asdk_app_test_fixture']:
-        out = pathlib.Path(temp) / ('cloud.zip' if app_id else 'desktop.zip')
+    for mode in ['cloud', 'local', 'bound']:
+        app_id = 'plugin_asdk_app_test_fixture' if mode == 'bound' else None
+        out = pathlib.Path(temp) / (mode + '.zip')
         command = [sys.executable, str(root / 'scripts/package-plugin.py'), '--output', str(out)]
         if app_id: command += ['--app-id', app_id]
+        if mode == 'local': command += ['--local']
         subprocess.run(command, check=True)
         with zipfile.ZipFile(out) as z:
             names = z.namelist()
@@ -23,13 +25,17 @@ with tempfile.TemporaryDirectory() as temp:
                 assert 'mcp.json' not in names and not any(n.startswith('server/') for n in names)
                 assert manifest['extensions']['com.openai']['apps'] == './.app.json'
                 assert json.loads(z.read('.app.json'))['apps']['knowledge-atlas']['id'] == app_id
-            else:
+            elif mode == 'local':
                 assert '.app.json' not in names and 'server/stdio.mjs' in names
                 assert json.loads(z.read('mcp.json'))['mcpServers']['knowledge-atlas']['type'] == 'stdio'
+            else:
+                assert '.app.json' not in names and not any(n.startswith('server/') for n in names)
+                server = json.loads(z.read('mcp.json'))['mcpServers']['knowledge-atlas']
+                assert server == {'type': 'streamable-http', 'url': 'https://littlefish.sarl/atlas/mcp'}
         # Deterministic packaging; no user data or build-clock noise.
         before = out.read_bytes()
         subprocess.run(command, check=True)
         assert before == out.read_bytes()
     bad = subprocess.run([sys.executable, str(root / 'scripts/package-plugin.py'), '--app-id', 'https://wrong.example/'], capture_output=True)
     assert bad.returncode != 0
-print('PASS: desktop and account-bound cloud ZIP layouts, no credential files, deterministic output, invalid binding rejected')
+print('PASS: cloud, local and account-bound ZIP layouts, no credential files, deterministic output, invalid binding rejected')

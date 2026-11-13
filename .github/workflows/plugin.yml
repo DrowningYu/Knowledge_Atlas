@@ -45,5 +45,5 @@ jobs:
       - run: python scripts/package-plugin.py
       - uses: actions/upload-artifact@v4
         with:
-          name: knowledge-atlas-desktop-plugin-${{ runner.os }}
+          name: knowledge-atlas-cloud-plugin-${{ runner.os }}
           path: artifacts/plugins/*.zip
