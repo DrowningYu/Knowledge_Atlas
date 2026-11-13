@@ -354,7 +354,7 @@ class Cloud:
             if not r.prepared:
                 r.headers['Cache-Control']='no-store'
                 r.headers['X-Content-Type-Options']='nosniff'
-                r.headers['Referrer-Policy']='no-referrer'
+                r.headers['Referrer-Policy']='same-origin' if req.path == PREFIX+'/oauth/authorize' else 'no-referrer'
                 r.headers['Content-Security-Policy']="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
                 if origin in allowed:
                     r.headers['Access-Control-Allow-Origin']=origin
@@ -370,7 +370,7 @@ class Cloud:
                 response.headers['Vary']='Origin'
                 response.headers['Access-Control-Expose-Headers']='MCP-Session-Id, MCP-Protocol-Version'
             response.headers['X-Content-Type-Options']='nosniff'
-            response.headers['Referrer-Policy']='no-referrer'
+            response.headers['Referrer-Policy']='same-origin' if req.path == PREFIX+'/oauth/authorize' else 'no-referrer'
         app.on_response_prepare.append(prepare)
         app.on_startup.append(self.start)
         app.on_cleanup.append(self.stop)

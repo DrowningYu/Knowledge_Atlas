@@ -43,9 +43,11 @@ class CloudTest(unittest.IsolatedAsyncioTestCase):
         p={'client_id':client,'redirect_uri':CALLBACK,'response_type':'code','scope':'atlas','resource':self.cloud.resource,'code_challenge':challenge,'code_challenge_method':'S256','state':'state-123'}
         r=await self.client.get('/atlas/oauth/authorize',params=p)
         self.assertEqual(r.status,200,await r.text())
+        self.assertEqual(r.headers['Referrer-Policy'],'same-origin')
         nonce=r.cookies['atlas_oauth_flow'].value
         r=await self.client.post('/atlas/oauth/authorize',data={'flow':nonce,'username':a['username'],'password':PASSWORD,'decision':'allow'},headers={'Cookie':'atlas_oauth_flow='+nonce,'Origin':self.cloud.origin},allow_redirects=False)
         self.assertEqual(r.status,302,await r.text())
+        self.assertEqual(r.headers['Referrer-Policy'],'same-origin')
         redirect=parse_qs(urlsplit(r.headers['Location']).query)
         self.assertEqual(redirect['state'],['state-123'])
         self.assertEqual(redirect['iss'],[self.cloud.public])
@@ -121,6 +123,38 @@ class CloudTest(unittest.IsolatedAsyncioTestCase):
         for _ in range(21):
             r=await self.client.post('/atlas/auth/login',json={})
         self.assertEqual(r.status,429)
+    async def test_authorization_referrer_policy_and_flow_guards(self):
+        for path in ('/atlas/healthz','/atlas/mcp','/.well-known/oauth-authorization-server/atlas'):
+            r=await self.client.get(path)
+            self.assertEqual(r.headers['Referrer-Policy'],'no-referrer',path)
+        r=await self.client.post('/atlas/oauth/register',json={'redirect_uris':[CALLBACK]})
+        client=(await r.json())['client_id']
+        p={'client_id':client,'redirect_uri':CALLBACK,'response_type':'code','scope':'atlas',
+           'resource':self.cloud.resource,'code_challenge':'a'*43,'code_challenge_method':'S256','state':'guard-test'}
+        r=await self.client.get('/atlas/oauth/authorize',params=p)
+        self.assertEqual(r.status,200)
+        self.assertEqual(r.headers['Referrer-Policy'],'same-origin')
+        nonce=r.cookies['atlas_oauth_flow'].value
+        form={'flow':nonce,'decision':'deny'}
+        for origin in ('null','https://evil.example'):
+            r=await self.client.post('/atlas/oauth/authorize',data=form,
+                headers={'Origin':origin,'Cookie':'atlas_oauth_flow='+nonce},allow_redirects=False)
+            self.assertEqual(r.status,403)
+            self.assertEqual((await r.json())['error'],'Origin not allowed')
+            self.assertEqual(r.headers['Referrer-Policy'],'same-origin')
+        for cookie in ('','atlas_oauth_flow=forged'):
+            r=await self.client.post('/atlas/oauth/authorize',data=form,
+                headers={'Origin':self.cloud.origin,'Cookie':cookie},allow_redirects=False)
+            self.assertEqual(r.status,403)
+        headers={'Origin':self.cloud.origin,'Cookie':'atlas_oauth_flow='+nonce}
+        r=await self.client.post('/atlas/oauth/authorize',data=form,headers=headers,allow_redirects=False)
+        self.assertEqual(r.status,302)
+        redirect=parse_qs(urlsplit(r.headers['Location']).query)
+        self.assertEqual(redirect['error'],['access_denied'])
+        self.assertEqual(redirect['state'],['guard-test'])
+        self.assertEqual(redirect['iss'],[self.cloud.public])
+        r=await self.client.post('/atlas/oauth/authorize',data=form,headers=headers,allow_redirects=False)
+        self.assertEqual(r.status,403)
     async def test_backend_restart_persists_data(self):
         r=await self.api(self.a,'create_map',{'title':'Persisted','target':'Root'});self.assertEqual(r.status,200)
         proc,_,_=self.cloud.backends[self.a['user_id']]
