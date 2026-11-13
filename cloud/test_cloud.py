@@ -8,6 +8,8 @@ import sys
 import tempfile
 import unittest
 from urllib.parse import parse_qs, urlsplit
+from aiohttp import web
+from multidict import CIMultiDict
 from aiohttp.test_utils import TestClient, TestServer
 sys.path.insert(0,str(Path(__file__).parent))
 from server import Cloud, digest
@@ -127,6 +129,8 @@ class CloudTest(unittest.IsolatedAsyncioTestCase):
         for path in ('/atlas/healthz','/atlas/mcp','/.well-known/oauth-authorization-server/atlas'):
             r=await self.client.get(path)
             self.assertEqual(r.headers['Referrer-Policy'],'no-referrer',path)
+            self.assertIn("form-action 'self'",r.headers['Content-Security-Policy'])
+            self.assertNotIn('https://chatgpt.com',r.headers['Content-Security-Policy'])
         r=await self.client.post('/atlas/oauth/register',json={'redirect_uris':[CALLBACK]})
         client=(await r.json())['client_id']
         p={'client_id':client,'redirect_uri':CALLBACK,'response_type':'code','scope':'atlas',
@@ -134,6 +138,8 @@ class CloudTest(unittest.IsolatedAsyncioTestCase):
         r=await self.client.get('/atlas/oauth/authorize',params=p)
         self.assertEqual(r.status,200)
         self.assertEqual(r.headers['Referrer-Policy'],'same-origin')
+        self.assertTrue(r.headers['Content-Security-Policy'].endswith(
+            "form-action 'self' https://chatgpt.com/connector_platform_oauth_redirect"))
         nonce=r.cookies['atlas_oauth_flow'].value
         form={'flow':nonce,'decision':'deny'}
         for origin in ('null','https://evil.example'):
@@ -160,5 +166,87 @@ class CloudTest(unittest.IsolatedAsyncioTestCase):
         proc,_,_=self.cloud.backends[self.a['user_id']]
         proc.kill();await proc.wait()
         r=await self.api(self.a,'list_maps');self.assertEqual((await r.json())[0]['title'],'Persisted')
+
+    async def test_modern_mcp_headers_and_discovery(self):
+        r=await self.token(await self.grant(self.a))
+        oauth={'token':(await r.json())['access_token']}
+        meta={'io.modelcontextprotocol/protocolVersion':'2026-07-28',
+              'io.modelcontextprotocol/clientCapabilities':{},
+              'io.modelcontextprotocol/clientInfo':{'name':'cloud-regression','version':'1'}}
+        async def call(method,params=None,override=None):
+            params={**(params or {}),'_meta':meta}
+            headers={**self.headers(oauth),'Content-Type':'application/json',
+                     'Accept':'application/json, text/event-stream',
+                     'MCP-Protocol-Version':'2026-07-28','Mcp-Method':method}
+            headers=CIMultiDict(headers)
+            if method=='tools/call':headers['Mcp-Name']=params['name']
+            for key,value in (override or {}).items():
+                if value is None:headers.pop(key,None)
+                elif isinstance(value,list):
+                    headers.popall(key,None)
+                    for v in value:headers.add(key,v)
+                else:headers[key]=value
+            r=await self.client.post('/atlas/mcp',headers=headers,
+                json={'jsonrpc':'2.0','id':1,'method':method,'params':params})
+            text=await r.text()
+            if text.startswith(('event:','data:')):
+                text=[line[5:].strip() for line in text.splitlines() if line.startswith('data:')][-1]
+            return r,json.loads(text)
+        r,result=await call('server/discover')
+        self.assertEqual(r.status,200,result);self.assertIn('result',result)
+        r,result=await call('tools/list')
+        self.assertEqual(r.status,200,result)
+        self.assertIn('list_maps',[t['name'] for t in result['result']['tools']])
+        r,result=await call('tools/call',{'name':'list_maps','arguments':{}})
+        self.assertEqual(r.status,200,result)
+        self.assertFalse(result['result'].get('isError',False),result)
+        self.assertEqual(json.loads(result['result']['content'][0]['text']),[])
+        for method,params,override in [
+            ('server/discover',{}, {'Mcp-Method':None}),
+            ('tools/list',{}, {'Mcp-Method':'tools/call'}),
+            ('tools/call',{'name':'list_maps','arguments':{}},{'Mcp-Name':None}),
+            ('tools/call',{'name':'list_maps','arguments':{}},{'Mcp-Name':'create_map'}),
+            ('tools/list',{}, {'Mcp-Method':['tools/list','tools/call']}),
+        ]:
+            r,result=await call(method,params,override)
+            self.assertEqual(result['error']['code'],-32020,result)
+
+    async def test_proxy_preserves_mcp_headers_and_raw_body(self):
+        captured={}
+        async def receive(req):
+            captured['headers']=req.headers;captured['raw']=await req.read()
+            return web.json_response({'ok':True})
+        upstream=web.Application();upstream.router.add_post('/mcp',receive)
+        server=TestServer(upstream);await server.start_server()
+        async def backend(user):
+            self.assertEqual(user,self.a['user_id'])
+            return None,str(server.make_url('')).rstrip('/'),'isolated-backend-token'
+        self.cloud.backend=backend
+        try:
+            raw=b'{ "jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name":"list_maps","arguments":{}} }\n'
+            extra={'MCP-Protocol-Version':'2026-07-28','Mcp-Method':'tools/call',
+                   'Mcp-Name':'list_maps','Mcp-Param-Region':'eu-west-1',
+                   'mCp-PaRaM-Encoded':'=base64:dGVzdA==','X-Unrelated':'must-not-forward'}
+            r=await self.client.post('/atlas/mcp',data=raw,
+                headers={**self.headers(self.a),**extra,'Content-Type':'application/json'})
+            self.assertEqual(r.status,200)
+            self.assertEqual(captured['raw'],raw)
+            for key,value in extra.items():
+                if key!='X-Unrelated':self.assertEqual(captured['headers'].get(key),value)
+            self.assertNotIn('X-Unrelated',captured['headers'])
+            self.assertEqual(captured['headers']['Authorization'],'Bearer isolated-backend-token')
+        finally:await server.close()
+
+    async def test_mcp_preflight_limits_header_allowlist(self):
+        r=await self.client.options('/atlas/mcp',headers={'Origin':self.cloud.origin,
+            'Access-Control-Request-Method':'POST',
+            'Access-Control-Request-Headers':'Mcp-Method, Mcp-Name, Mcp-Param-Region, X-Unrelated'})
+        self.assertEqual(r.status,204)
+        allowed={h.strip().lower() for h in r.headers['Access-Control-Allow-Headers'].split(',')}
+        self.assertTrue({'mcp-method','mcp-name','mcp-param-region'} <= allowed)
+        self.assertNotIn('x-unrelated',allowed)
+        r=await self.client.options('/atlas/mcp',headers={'Origin':'https://evil.example',
+            'Access-Control-Request-Headers':'Mcp-Param-Region'})
+        self.assertEqual(r.status,403)
 
 if __name__=='__main__':unittest.main(verbosity=2)

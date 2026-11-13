@@ -14,11 +14,13 @@ import time
 from urllib.parse import urlencode, urlsplit
 
 from aiohttp import web, ClientSession, ClientTimeout
+from multidict import CIMultiDict
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 
 PREFIX = '/atlas'
 SCOPE = 'atlas'
+CHATGPT_CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect'
 PASSWORDS = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=1)
 
 def digest(s):
@@ -39,7 +41,7 @@ class Cloud:
         self.resource = self.public + '/mcp'
         u = urlsplit(self.public)
         self.origin = f'{u.scheme}://{u.netloc}'
-        self.redirects = {'https://chatgpt.com/connector_platform_oauth_redirect', *extra_redirects}
+        self.redirects = {CHATGPT_CALLBACK, *extra_redirects}
         self.db = sqlite3.connect(self.directory / 'accounts.sqlite')
         self.db.row_factory = sqlite3.Row
         self.db.executescript('''
@@ -299,10 +301,12 @@ class Cloud:
         if size > 100*1024*1024 and method in ('create_map','apply_graph_patch','import_graph','undo','redo','restore_deleted_map'):
             return failure('云端存储已达限额，请导出数据并联系管理员',413)
         _,url,token = await self.backend(a['user'])
-        headers = {'Authorization':'Bearer '+token}
-        for k in ('Content-Type','Accept','MCP-Session-Id','MCP-Protocol-Version','Last-Event-ID'):
-            if k in req.headers:
-                headers[k] = req.headers[k]
+        headers = CIMultiDict({'Authorization':'Bearer '+token})
+        forwarded = {'content-type','accept','mcp-session-id','mcp-protocol-version','mcp-method','mcp-name','last-event-id'}
+        # Preserve duplicate values too, so backend header validation cannot be bypassed.
+        for k, value in req.headers.items():
+            if k.lower() in forwarded or k.lower().startswith('mcp-param-'):
+                headers.add(k, value)
         async with self.client.request(req.method,url+('/mcp' if is_mcp else '/api'),headers=headers,data=raw,allow_redirects=False) as upstream:
             outgoing = {k:v for k,v in upstream.headers.items() if k.lower() in ('content-type','mcp-session-id','mcp-protocol-version')}
             response = web.StreamResponse(status=upstream.status,headers=outgoing)
@@ -355,11 +359,18 @@ class Cloud:
                 r.headers['Cache-Control']='no-store'
                 r.headers['X-Content-Type-Options']='nosniff'
                 r.headers['Referrer-Policy']='same-origin' if req.path == PREFIX+'/oauth/authorize' else 'no-referrer'
-                r.headers['Content-Security-Policy']="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+                form_action = "'self'"
+                if req.path == PREFIX+'/oauth/authorize':
+                    form_action += ' '+CHATGPT_CALLBACK
+                r.headers['Content-Security-Policy']="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action "+form_action
                 if origin in allowed:
                     r.headers['Access-Control-Allow-Origin']=origin
                     r.headers['Vary']='Origin'
-                    r.headers['Access-Control-Allow-Headers']='Authorization, Content-Type, Accept, MCP-Session-Id, MCP-Protocol-Version'
+                    r.headers['Access-Control-Allow-Headers']='Authorization, Content-Type, Accept, MCP-Session-Id, MCP-Protocol-Version, Mcp-Method, Mcp-Name'
+                    param_headers = [h.strip() for h in req.headers.get('Access-Control-Request-Headers','').split(',')
+                                     if re.fullmatch(r'mcp-param-[a-z0-9-]+',h.strip(),re.I)]
+                    if param_headers:
+                        r.headers['Access-Control-Allow-Headers'] += ', '+', '.join(param_headers)
                     r.headers['Access-Control-Allow-Methods']='GET, POST, DELETE, OPTIONS'
             return r
         app=web.Application(middlewares=[secure],client_max_size=2*1024*1024)
